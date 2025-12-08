@@ -14,6 +14,7 @@ class GomokuGame {
         this.initBoard();
         this.initEventListeners();
         this.startPolling();
+        this.startSessionUpdater();
     }
 
     initBoard() {
@@ -374,6 +375,34 @@ class GomokuGame {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // 启动会话更新器，定期更新用户在线状态
+    startSessionUpdater() {
+        // 获取CSRF令牌
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // 每2分钟更新一次会话活动时间
+        setInterval(() => {
+            fetch('/api/update-session/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 会话活动时间已更新
+                } else {
+                    console.error('更新会话活动时间失败:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('更新会话活动时间出错:', error);
+            });
+        }, 120000); // 120000毫秒 = 2分钟
     }
 }
 

@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from account.views import login_view, logout_view, delete_account_confirm, delete_account
 from game.views import *
 
@@ -38,4 +40,11 @@ urlpatterns = [
     path('profile/<int:player_id>/', player_profile, name='player_profile'),
     path('account/delete/', delete_account, name='delete_account'),
     path('account/delete/confirm/', delete_account_confirm, name='delete_account_confirm'),
+    path('api/online-players/', get_online_players, name='get_online_players'),
+    path('api/invite-player/<int:player_id>/', invite_player, name='invite_player'),
+    path('api/update-session/', update_session, name='update_session'),
 ]
+
+# 开发环境下的静态文件服务
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

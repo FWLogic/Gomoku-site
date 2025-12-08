@@ -138,7 +138,7 @@ body {
     margin-top: 20px;
 }
 
-.room-list, .friend-list, .quick-actions {
+.room-list, .friend-list, .quick-actions, .online-players {
     background: white;
     border-radius: 15px;
     padding: 20px;

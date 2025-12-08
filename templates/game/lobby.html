@@ -106,6 +106,34 @@
                 {% endfor %}
             </div>
 
+            <div class="online-players card">
+                <h3 class="section-title"><i class="fas fa-users"></i> 在线玩家</h3>
+                <div class="player-list" id="online-players-list">
+                    <!-- 在线玩家将通过JavaScript动态加载 -->
+                    <div class="empty-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>加载中...</p>
+                    </div>
+                    
+                    <!-- 在线玩家模板 -->
+                    <template id="player-template">
+                        <div class="player-item" data-player-id="">
+                            <div class="player-avatar">
+                                <span class="player-initial"></span>
+                                <div class="online-indicator"></div>
+                            </div>
+                            <div class="player-info">
+                                <div class="player-name"></div>
+                                <div class="player-status"></div>
+                            </div>
+                            <div class="player-actions">
+                                <button class="btn btn-primary invite-btn">邀请对战</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
             <div class="friend-list card">
                 <h3 class="section-title"><i class="fas fa-user-friends"></i> 好友对战记录</h3>
                 {% for friend in friends %}

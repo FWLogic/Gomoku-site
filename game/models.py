@@ -104,3 +104,6 @@ class PlayerSession(models.Model):
     session_key = models.CharField(max_length=40)
     created_at = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('player', 'session_key')

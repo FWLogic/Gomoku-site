@@ -7,6 +7,7 @@ from django.db.models import Q
 import json
 from datetime import datetime
 import random
+from django.utils import timezone
 from .models import *
 
 
@@ -15,10 +16,10 @@ def lobby(request):
     player, created = Player.objects.get_or_create(user=request.user)
 
     # 更新或创建会话
-    PlayerSession.objects.update_or_create(
+    session, created = PlayerSession.objects.update_or_create(
         player=player,
         session_key=request.session.session_key,
-        defaults={'last_activity': datetime.now()}
+        defaults={'last_activity': timezone.now()}
     )
 
     # 获取活跃房间
@@ -108,6 +109,13 @@ def join_room(request, room_code):
 @login_required
 def game_room(request, room_code):
     player = get_object_or_404(Player, user=request.user)
+
+    # 更新会话活动时间
+    PlayerSession.objects.update_or_create(
+        player=player,
+        session_key=request.session.session_key,
+        defaults={'last_activity': timezone.now()}
+    )
 
     try:
         room = GomokuRoom.objects.get(room_code=room_code)
@@ -559,3 +567,133 @@ def delete_room(request, room_code):
         return JsonResponse({'success': True, 'message': '房间已成功删除'})
     except GomokuRoom.DoesNotExist:
         return JsonResponse({'success': False, 'error': '房间不存在'})
+
+
+@login_required
+@require_GET
+def get_online_players(request):
+    """获取在线玩家列表"""
+    current_player = Player.objects.get(user=request.user)
+
+    # 获取最近5分钟内有活动记录的玩家
+    from datetime import timedelta
+    five_minutes_ago = timezone.now() - timedelta(minutes=5)
+
+    # 先更新当前用户的会话活动时间
+    updated_sessions = PlayerSession.objects.filter(
+        player=current_player,
+        session_key=request.session.session_key
+    ).update(last_activity=timezone.now())
+
+    # 如果没有会话记录，创建一个
+    if updated_sessions == 0:
+        PlayerSession.objects.create(
+            player=current_player,
+            session_key=request.session.session_key,
+            last_activity=timezone.now()
+        )
+
+    # 使用values获取不重复的玩家ID，然后再获取完整的会话对象
+    online_player_ids = PlayerSession.objects.filter(
+        last_activity__gte=five_minutes_ago
+    ).values_list('player_id', flat=True).distinct()
+
+    # 获取每个玩家的最新会话
+    online_sessions = []
+    for player_id in online_player_ids:
+        latest_session = PlayerSession.objects.filter(
+            player_id=player_id,
+            last_activity__gte=five_minutes_ago
+        ).order_by('-last_activity').select_related('player').first()
+        if latest_session:
+            online_sessions.append(latest_session)
+
+    # 获取在线玩家
+    online_players = []
+    for session in online_sessions:
+        player = session.player
+        if player != current_player:
+            # 检查玩家是否已在游戏中
+            in_game = GomokuRoom.objects.filter(
+                Q(creator=player) | Q(opponent=player),
+                status='playing'
+            ).exists()
+
+            online_players.append({
+                'id': player.id,
+                'username': player.user.username,
+                'win_rate': round(player.win_rate(), 1),
+                'in_game': in_game
+            })
+
+    return JsonResponse({
+        'success': True,
+        'players': online_players
+    })
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def invite_player(request, player_id):
+    """邀请玩家对战"""
+    current_player = Player.objects.get(user=request.user)
+    invited_player = get_object_or_404(Player, id=player_id)
+
+    # 检查是否已经存在等待中的房间
+    existing_room = GomokuRoom.objects.filter(
+        creator=current_player,
+        status='waiting',
+        opponent__isnull=True
+    ).first()
+
+    if existing_room:
+        # 如果已有房间，直接返回房间链接
+        return JsonResponse({
+            'success': True,
+            'message': f'已向 {invited_player.user.username} 发送邀请，房间号: {existing_room.room_code}',
+            'room_code': existing_room.room_code
+        })
+    else:
+        # 创建新房间
+        room = GomokuRoom.objects.create(
+            creator=current_player,
+            status='waiting'
+        )
+
+        # 随机决定谁先走
+        room.current_turn = current_player
+        room.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'已向 {invited_player.user.username} 发送邀请，房间号: {room.room_code}',
+            'room_code': room.room_code
+        })
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def update_session(request):
+    """更新会话活动时间"""
+    player = Player.objects.get(user=request.user)
+
+    # 更新会话活动时间
+    updated = PlayerSession.objects.filter(
+        player=player,
+        session_key=request.session.session_key
+    ).update(last_activity=timezone.now())
+
+    # 如果没有会话记录，创建一个
+    if updated == 0:
+        PlayerSession.objects.create(
+            player=player,
+            session_key=request.session.session_key,
+            last_activity=timezone.now()
+        )
+
+    return JsonResponse({
+        'success': True,
+        'message': '会话活动时间已更新'
+    })
