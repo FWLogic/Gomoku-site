@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}五子棋对战平台{% endblock %}</title>
+    <link rel="icon" href="{% static 'icons/icon.png' %}" type="image/png">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+    {% block js %}
+    <script src="{% static 'js/base.js' %}"></script>
+    {% endblock %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}五子棋大厅{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/lobby.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-chess-board"></i> 五子棋对战平台</h1>
+            <div class="user-info">
+                <div class="avatar">
+                    {{ player.user.username|first|upper }}
+                </div>
+                <div>
+                    <div class="username">{{ player.user.username }}</div>
+                    <div class="user-stats">胜率: {{ player.win_rate|floatformat:1 }}%</div>
+                </div>
+                <a href="{% url 'profile' %}" class="btn btn-secondary">
+                    <i class="fas fa-user"></i> 我的资料
+                </a>
+                <a href="{% url 'logout' %}" class="btn btn-secondary">
+                    <i class="fas fa-sign-out-alt"></i> 退出
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="lobby-intro">
+                <h2>开始新游戏</h2>
+                <p>创建一个房间，邀请朋友一起对战五子棋</p>
+                <a href="{% url 'create_room' %}" class="btn btn-primary lobby-create-btn">
+                    <i class="fas fa-plus-circle"></i> 创建新房间
+                </a>
+            </div>
+        </div>
+
+        <div class="lobby-grid">
+            <div class="room-list card">
+                <h3 class="section-title"><i class="fas fa-door-open"></i> 我的房间</h3>
+                {% for room in my_rooms %}
+                <div class="room-item">
+                    <div class="room-header">
+                        <span class="room-code">#{{ room.room_code }}</span>
+                        <span class="room-status status-{{ room.status }}">
+                            {% if room.status == 'waiting' %}等待中
+                            {% elif room.status == 'playing' %}进行中
+                            {% else %}已结束{% endif %}
+                        </span>
+                    </div>
+                    <div class="room-meta">
+                        创建时间: {{ room.created_at|date:"m-d H:i" }}
+                    </div>
+                    <div class="room-actions">
+                        <a href="{% url 'game_room' room.room_code %}" class="btn btn-primary">
+                            {% if room.status == 'waiting' %}等待加入
+                            {% elif room.status == 'playing' %}继续游戏
+                            {% else %}查看结果{% endif %}
+                        </a>
+                        <button class="btn btn-secondary copy-room-link" data-room="{{ room.room_code }}">
+                            <i class="fas fa-link"></i>
+                        </button>
+                        {% if room.status == 'waiting' %}
+                        <button class="btn btn-danger delete-room-btn" data-room="{{ room.room_code }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>还没有房间，创建第一个房间吧！</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="room-list card">
+                <h3 class="section-title"><i class="fas fa-users"></i> 可加入的房间</h3>
+                {% for room in available_rooms %}
+                <div class="room-item">
+                    <div class="room-header">
+                        <span class="room-code">#{{ room.room_code }}</span>
+                        <span class="room-status status-waiting">等待中</span>
+                    </div>
+                    <div class="room-meta">
+                        房主: {{ room.creator.user.username }}
+                    </div>
+                    <div class="room-actions">
+                        <a href="{% url 'join_room' room.room_code %}" class="btn btn-success">
+                            加入房间
+                        </a>
+                        <button class="btn btn-secondary copy-room-link" data-room="{{ room.room_code }}">
+                            <i class="fas fa-link"></i>
+                        </button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <p>暂时没有可加入的房间</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="friend-list card">
+                <h3 class="section-title"><i class="fas fa-user-friends"></i> 好友对战记录</h3>
+                {% for friend in friends %}
+                <div class="friend-item" onclick="window.location.href='{% url 'player_profile' friend.player.id %}'">
+                    <div class="friend-avatar">
+                        {{ friend.player.user.username|first|upper }}
+                    </div>
+                    <div class="friend-info">
+                        <div class="friend-name">{{ friend.player.user.username }}</div>
+                        <div class="friend-stats">
+                            胜 {{ friend.wins }} 场 • 最后对战: {{ friend.last_played|timesince }}前
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-user-friends"></i>
+                    <p>还没有对战记录</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/lobby.js' %}"></script>
+{% endblock %}

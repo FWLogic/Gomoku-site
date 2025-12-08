@@ -1,0 +1,312 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 网站图标 */
+.favicon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 卡片样式 */
+.card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+/* 按钮样式 */
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    text-align: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #333;
+    border: 1px solid #dee2e6;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #333;
+}
+
+/* 头部样式 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.header h1 {
+    color: white;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: white;
+}
+
+.avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 20px;
+    color: #667eea;
+}
+
+.username {
+    font-weight: 600;
+}
+
+.user-stats {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* 大厅样式 */
+.lobby-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 25px;
+    margin-top: 20px;
+}
+
+.room-list, .friend-list, .quick-actions {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.room-item {
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.room-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.room-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.room-code {
+    font-weight: bold;
+    color: #667eea;
+    font-size: 18px;
+}
+
+.room-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-waiting {
+    background: #ffc107;
+    color: #333;
+}
+
+.status-playing {
+    background: #28a745;
+    color: white;
+}
+
+.status-finished {
+    background: #6c757d;
+    color: white;
+}
+
+.friend-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.friend-item:hover {
+    background: #f8f9fa;
+}
+
+.friend-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 15px;
+}
+
+.friend-info {
+    flex: 1;
+}
+
+.friend-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.friend-stats {
+    font-size: 12px;
+    color: #666;
+}
+
+/* 模态框 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    min-width: 400px;
+    max-width: 90%;
+    animation: modalSlide 0.3s ease;
+}
+
+@keyframes modalSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .lobby-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .modal-content {
+        min-width: 300px;
+        padding: 20px;
+    }
+}

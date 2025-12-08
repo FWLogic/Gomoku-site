@@ -1,0 +1,370 @@
+/* 游戏房间页面样式 */
+.game-container {
+    display: grid;
+    grid-template-columns: minmax(250px, 1fr) minmax(400px, 600px) minmax(250px, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+    max-width: 100%;
+}
+
+.player-info {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+}
+
+.player-name {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.player-color {
+    display: inline-block;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.color-black {
+    background: #333;
+    color: white;
+}
+
+.color-white {
+    background: #f8f9fa;
+    color: #333;
+    border: 1px solid #dee2e6;
+}
+
+.color-waiting {
+    background: #f8f9fa;
+    color: #666;
+    border: 1px solid #dee2e6;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #667eea;
+}
+
+/* 棋盘样式 */
+.board-container {
+    position: relative;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 400px;
+    width: 100%;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    grid-template-rows: repeat(15, 1fr);
+    gap: 0;
+    width: 100%;
+    height: 100%;
+    max-width: 600px;
+    max-height: 600px;
+    min-width: 400px;
+    min-height: 400px;
+    background: #e6b680;
+    border: 4px solid #8b4513;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.cell {
+    position: relative;
+    border: 1px solid #d4a76a;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.cell::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    background: transparent;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.cell.black::before {
+    width: 36px;
+    height: 36px;
+    background: radial-gradient(circle at 30% 30%, #666, #000);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.cell.white::before {
+    width: 36px;
+    height: 36px;
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.cell.last-move::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background: red;
+    border-radius: 50%;
+}
+
+/* 游戏控制 */
+.game-controls {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+}
+
+.control-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.chat-container {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 10px;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: white;
+    max-width: 80%;
+}
+
+.chat-message.own {
+    background: #667eea;
+    color: white;
+    margin-left: auto;
+}
+
+.chat-input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+/* 移动历史 */
+.move-history {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.move-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 14px;
+}
+
+.move-number {
+    color: #666;
+    font-weight: bold;
+}
+
+.move-coords {
+    color: #333;
+}
+
+.move-player {
+    color: #667eea;
+    font-weight: 600;
+}
+
+
+/* 通知样式 */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    animation: slideIn 0.3s ease;
+}
+
+.notification-success {
+    background: #28a745 !important;
+}
+
+.notification-error {
+    background: #dc3545 !important;
+}
+
+.notification-info {
+    background: #007bff !important;
+}
+
+/* 游戏状态样式 */
+.status-your-turn {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-opponent-turn {
+    color: #dc3545;
+}
+
+.status-winner {
+    color: #28a745;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.status-lose {
+    color: #dc3545;
+    font-size: 20px;
+}
+
+.status-draw {
+    color: #ffc107;
+    font-size: 20px;
+}
+
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .game-container {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
+
+    .board-container {
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .board {
+        width: 90%;
+        height: 90%;
+        max-width: 500px;
+        max-height: 500px;
+        min-width: 400px;
+        min-height: 400px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .board {
+        width: 90%;
+        height: 90%;
+        max-width: 400px;
+        max-height: 400px;
+        min-width: 320px;
+        min-height: 320px;
+    }
+
+    .game-container {
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .board {
+        width: 90%;
+        height: 90%;
+        max-width: 320px;
+        max-height: 320px;
+        min-width: 280px;
+        min-height: 280px;
+    }
+
+    .board-container {
+        padding: 10px;
+    }
+
+    .game-container {
+        gap: 10px;
+    }
+}

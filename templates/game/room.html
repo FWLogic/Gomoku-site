@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}房间 {{ room.room_code }} - 五子棋{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/room.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1><i class="fas fa-chess-board"></i> 五子棋对战</h1>
+                <div id="game-status" class="status-waiting" style="color: white; margin-top: 5px;">
+                    {% if room.status == 'waiting' %}等待对手加入...
+                    {% elif room.status == 'playing' %}{% if room.current_turn == player %}轮到你了{% else %}对手回合{% endif %}
+                    {% elif room.status == 'finished' %}{% if room.winner == player %}你赢了！{% elif room.is_draw %}和棋{% else %}你输了{% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="user-info">
+                <div style="text-align: right; color: white;">
+                    <div>房间号: <strong>#{{ room.room_code }}</strong></div>
+                    <div id="turn-indicator" style="font-size: 14px;">
+                        {% if room.status == 'playing' %}
+                            {% if room.current_turn == player %}请落子{% else %}等待对手...{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{% url 'lobby' %}" class="btn btn-secondary" id="leave-btn">
+                    <i class="fas fa-sign-out-alt"></i> 离开
+                </a>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <!-- 对手信息 -->
+            <div class="player-info card">
+                <div id="opponent-info">
+                    {% if opponent %}
+                    <div class="player-name">{{ opponent.user.username }}</div>
+                    <div class="player-color color-{% if player_color == 'black' %}white{% else %}black{% endif %}">
+                        {% if player_color == 'black' %}白棋{% else %}黑棋{% endif %}
+                    </div>
+                    {% if friend_stats %}
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">总对局</div>
+                            <div class="stat-value">{{ friend_stats.total_games }}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">对方胜场</div>
+                            <div class="stat-value">
+                                {% if player == friend_stats.player1 %}
+                                    {{ friend_stats.player2_wins }}
+                                {% else %}
+                                    {{ friend_stats.player1_wins }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="player-name">等待对手...</div>
+                    <div class="player-color color-waiting">未加入</div>
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                        <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                            分享房间链接给朋友:
+                        </p>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="room-link" value="{{ request.build_absolute_uri }}"
+                                   readonly style="flex: 1; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                            <button class="btn btn-secondary" onclick="copyRoomLink()">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 棋盘区域 -->
+            <div class="board-container card">
+                <div id="chessboard" class="board"></div>
+            </div>
+
+            <!-- 当前玩家信息和控制面板 -->
+            <div class="game-controls card">
+                <!-- 当前玩家信息 -->
+                <div class="player-info" style="margin-bottom: 25px;">
+                    <div class="player-name" id="player-name">{{ player.user.username }}</div>
+                    <div class="player-color color-{{ player_color }}" id="player-color">
+                        {% if player_color == 'black' %}黑棋{% else %}白棋{% endif %}
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">总胜场</div>
+                            <div class="stat-value">{{ player.total_wins }}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">总对局</div>
+                            <div class="stat-value">{{ player.games_played }}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">胜率</div>
+                            <div class="stat-value">{{ player.win_rate|floatformat:1 }}%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">等级</div>
+                            <div class="stat-value">
+                                {% if player.total_wins < 10 %}新手
+                                {% elif player.total_wins < 50 %}熟练
+                                {% elif player.total_wins < 100 %}高手
+                                {% else %}大师{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 游戏控制按钮 -->
+                <div class="control-buttons">
+                    <button class="btn btn-warning" id="undo-btn" {% if room.status != 'playing' %}disabled{% endif %}>
+                        <i class="fas fa-undo"></i> 悔棋
+                    </button>
+                    <button class="btn btn-secondary" id="draw-btn" {% if room.status != 'playing' %}disabled{% endif %}>
+                        <i class="fas fa-handshake"></i> 和棋
+                    </button>
+                </div>
+
+                <!-- 聊天区域 -->
+                <div class="chat-container">
+                    <div class="section-title">
+                        <i class="fas fa-comments"></i> 聊天
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                        {% for chat in chat_messages %}
+                        <div class="chat-message {% if chat.player == player %}own{% endif %}">
+                            <div class="chat-meta">
+                                <span class="chat-sender">{{ chat.player.user.username }}</span>
+                                <span class="chat-time">{{ chat.timestamp|time:"H:i" }}</span>
+                            </div>
+                            <div class="chat-content">{{ chat.message }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="chat-input-group">
+                        <input type="text" id="chat-input" class="chat-input" placeholder="输入消息..."
+                               {% if room.status == 'finished' %}disabled{% endif %}>
+                        <button class="btn btn-primary" id="send-chat" {% if room.status == 'finished' %}disabled{% endif %}>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 移动历史 -->
+                <div style="margin-top: 20px;">
+                    <div class="section-title">
+                        <i class="fas fa-history"></i> 移动历史
+                    </div>
+                    <div class="move-history" id="move-history">
+                        {% for move in move_history|slice:":10" %}
+                        <div class="move-item">
+                            <span class="move-number">#{{ move.move_number }}</span>
+                            <span class="move-coords">({{ move.row|add:1 }}, {{ move.col|add:1 }})</span>
+                            <span class="move-player">{{ move.player.user.username }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 传递变量给JavaScript -->
+    <script>
+        window.roomCode = '{{ room.room_code }}';
+        window.playerId = {{ player.id }};
+        window.playerColor = '{{ player_color }}';
+        window.lastChatId = {{ last_chat_id|default:0 }};
+    </script>
+
+    {% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/room.js' %}"></script>
+<script>
+    function copyRoomLink() {
+        const linkInput = document.getElementById('room-link');
+        linkInput.select();
+        navigator.clipboard.writeText(linkInput.value).then(() => {
+            alert('房间链接已复制到剪贴板！');
+        });
+    }
+
+    // 如果游戏已结束，禁用棋盘点击
+    {% if room.status == 'finished' %}
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.style.cursor = 'not-allowed';
+            cell.onclick = null;
+        });
+    });
+    {% endif %}
+</script>
+{% endblock %}
