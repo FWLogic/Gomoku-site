@@ -15,6 +15,11 @@
                 <a href="{% url 'lobby' %}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> 返回大厅
                 </a>
+                {% if is_own_profile %}
+                <a href="{% url 'delete_account_confirm' %}" class="btn btn-danger" style="margin-left: 10px;">
+                    <i class="fas fa-trash"></i> 删除账户
+                </a>
+                {% endif %}
             </div>
         </div>
 

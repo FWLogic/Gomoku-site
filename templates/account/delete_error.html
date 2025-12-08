@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}删除账户错误{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="card" style="max-width: 600px; margin: 50px auto;">
+            <h2 style="color: #e74c3c; text-align: center;">
+                <i class="fas fa-exclamation-circle"></i> 删除账户出错
+            </h2>
+            <div class="alert alert-danger" style="margin: 20px 0;">
+                <p><strong>删除账户时发生错误：</strong></p>
+                <p>{{ error }}</p>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{% url 'profile' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回资料页
+                </a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .alert {
+        padding: 15px;
+        border-radius: 5px;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 15px;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        text-decoration: none;
+        color: white;
+    }
+</style>
+{% endblock %}

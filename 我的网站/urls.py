@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from account.views import login_view, logout_view
+from account.views import login_view, logout_view, delete_account_confirm, delete_account
 from game.views import *
 
 urlpatterns = [
@@ -36,4 +36,6 @@ urlpatterns = [
     path('room/<str:room_code>/state/', get_room_state, name='get_room_state'),
     path('profile/', player_profile, name='profile'),
     path('profile/<int:player_id>/', player_profile, name='player_profile'),
+    path('account/delete/', delete_account, name='delete_account'),
+    path('account/delete/confirm/', delete_account_confirm, name='delete_account_confirm'),
 ]

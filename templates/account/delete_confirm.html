@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}删除账户确认{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="card" style="max-width: 600px; margin: 50px auto;">
+            <h2 style="color: #e74c3c; text-align: center;">
+                <i class="fas fa-exclamation-triangle"></i> 警告
+            </h2>
+            <div class="alert alert-danger" style="margin: 20px 0;">
+                <p><strong>您确定要删除账户吗？</strong></p>
+                <p>此操作不可撤销，将会永久删除您的所有数据，包括：</p>
+                <ul>
+                    <li>您的账户和玩家信息</li>
+                    <li>所有游戏记录</li>
+                    <li>好友关系和统计数据</li>
+                    <li>您创建的游戏房间</li>
+                    <li>所有会话记录</li>
+                </ul>
+            </div>
+
+            <form method="post" action="{% url 'delete_account' %}" style="text-align: center;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> 确认删除账户
+                </button>
+                <a href="{% url 'profile' %}" class="btn btn-secondary" style="margin-left: 10px;">
+                    <i class="fas fa-arrow-left"></i> 取消
+                </a>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .alert {
+        padding: 15px;
+        border-radius: 5px;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    ul {
+        text-align: left;
+        margin: 10px 0;
+    }
+
+    .btn-danger {
+        background-color: #e74c3c;
+        border-color: #e74c3c;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .btn-danger:hover {
+        background-color: #c0392b;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        text-decoration: none;
+        color: white;
+    }
+</style>
+{% endblock %}

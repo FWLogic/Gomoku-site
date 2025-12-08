@@ -534,7 +534,7 @@ def player_profile(request, player_id=None):
         status='finished'
     ).order_by('-created_at')[:10]
 
-    return render(request, 'game/profile.html', {
+    return render(request, 'account/profile.html', {
         'profile_player': profile_player,
         'stats_list': stats_list,
         'recent_games': recent_games,
