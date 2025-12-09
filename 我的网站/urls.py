@@ -42,6 +42,10 @@ urlpatterns = [
     path('account/delete/confirm/', delete_account_confirm, name='delete_account_confirm'),
     path('api/online-players/', get_online_players, name='get_online_players'),
     path('api/invite-player/<int:player_id>/', invite_player, name='invite_player'),
+    path('api/invitations/', get_invitations, name='get_invitations'),
+    path('api/invitation/<int:invitation_id>/status/', get_invitation_status, name='get_invitation_status'),
+    path('api/invitation/<int:invitation_id>/accept/', accept_invitation, name='accept_invitation'),
+    path('api/invitation/<int:invitation_id>/reject/', reject_invitation, name='reject_invitation'),
     path('api/update-session/', update_session, name='update_session'),
 ]
 

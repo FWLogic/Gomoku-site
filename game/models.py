@@ -107,3 +107,26 @@ class PlayerSession(models.Model):
 
     class Meta:
         unique_together = ('player', 'session_key')
+
+
+class Invitation(models.Model):
+    """游戏邀请模型"""
+    INVITATION_STATUS = (
+        ('pending', '等待中'),
+        ('accepted', '已接受'),
+        ('rejected', '已拒绝'),
+        ('expired', '已过期'),
+    )
+    
+    sender = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='sent_invitations')
+    receiver = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='received_invitations')
+    room = models.ForeignKey(GomokuRoom, on_delete=models.CASCADE, related_name='invitations')
+    status = models.CharField(max_length=10, choices=INVITATION_STATUS, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.sender.user.username}邀请{self.receiver.user.username}加入房间{self.room.room_code}"

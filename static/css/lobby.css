@@ -68,6 +68,215 @@
     background: #dc3545;
 }
 
+.toast.info {
+    background: #17a2b8;
+}
+
+/* 邀请通知样式 */
+.invitation-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    max-width: 350px;
+}
+
+.invitation-notification {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 15px;
+    overflow: hidden;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: all 0.3s ease;
+    border-left: 4px solid #667eea;
+}
+
+.invitation-notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.notification-header i {
+    color: #667eea;
+    margin-right: 8px;
+}
+
+.notification-header span {
+    font-weight: 600;
+    flex: 1;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.notification-body {
+    padding: 15px;
+}
+
+.notification-body p {
+    margin: 0 0 8px 0;
+}
+
+.notification-body .time {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.notification-actions .btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+/* 邀请状态提示样式 */
+.invitation-status-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1001;
+    max-width: 300px;
+}
+
+.invitation-status {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 15px;
+    overflow: hidden;
+    transform: translateY(100%);
+    opacity: 0;
+    transition: all 0.3s ease;
+    border-left: 4px solid #667eea;
+}
+
+.invitation-status.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.status-close-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.status-close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.status-body {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.status-body p {
+    margin: 0;
+    flex: 1;
+    padding-right: 10px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6c757d;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.accepted {
+    background: #28a745;
+    animation: none;
+}
+
+.status-dot.rejected {
+    background: #dc3545;
+    animation: none;
+}
+
+.status-dot.expired {
+    background: #ffc107;
+    animation: none;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(102, 126, 234, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+    }
+}
+
 /* 在线玩家列表样式 */
 .player-list {
     max-height: 400px;
