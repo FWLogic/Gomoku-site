@@ -46,17 +46,75 @@
                     {% if friend_stats %}
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <div class="stat-label">总对局</div>
-                            <div class="stat-value">{{ friend_stats.total_games }}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">对方胜场</div>
+                            <div class="stat-label">总胜场</div>
                             <div class="stat-value">
                                 {% if player == friend_stats.player1 %}
                                     {{ friend_stats.player2_wins }}
                                 {% else %}
                                     {{ friend_stats.player1_wins }}
                                 {% endif %}
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">总对局</div>
+                            <div class="stat-value">{{ friend_stats.total_games }}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">胜率</div>
+                            <div class="stat-value">
+                                {% if player == friend_stats.player1 %}
+                                    {% if friend_stats.total_games > 0 %}
+                                        {% widthratio friend_stats.player2_wins friend_stats.total_games 100 %}%
+                                    {% else %}
+                                        0.0%
+                                    {% endif %}
+                                {% else %}
+                                    {% if friend_stats.total_games > 0 %}
+                                        {% widthratio friend_stats.player1_wins friend_stats.total_games 100 %}%
+                                    {% else %}
+                                        0.0%
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">等级</div>
+                            <div class="stat-value">
+                                {% if player == friend_stats.player1 %}
+                                    {% if friend_stats.player2_wins < 10 %}新手
+                                    {% elif friend_stats.player2_wins < 50 %}熟练
+                                    {% elif friend_stats.player2_wins < 100 %}高手
+                                    {% else %}大师{% endif %}
+                                {% else %}
+                                    {% if friend_stats.player1_wins < 10 %}新手
+                                    {% elif friend_stats.player1_wins < 50 %}熟练
+                                    {% elif friend_stats.player1_wins < 100 %}高手
+                                    {% else %}大师{% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">总胜场</div>
+                            <div class="stat-value">{{ opponent.total_wins }}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">总对局</div>
+                            <div class="stat-value">{{ opponent.games_played }}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">胜率</div>
+                            <div class="stat-value">{{ opponent.win_rate|floatformat:1 }}%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">等级</div>
+                            <div class="stat-value">
+                                {% if opponent.total_wins < 10 %}新手
+                                {% elif opponent.total_wins < 50 %}熟练
+                                {% elif opponent.total_wins < 100 %}高手
+                                {% else %}大师{% endif %}
                             </div>
                         </div>
                     </div>
@@ -83,6 +141,24 @@
             <!-- 棋盘区域 -->
             <div class="board-container card">
                 <div id="chessboard" class="board"></div>
+
+                <!-- 移动历史（已移至棋盘下方） -->
+                <div class="board-bottom">
+                    <div style="margin-top: 20px; width: 100%;">
+                        <div class="section-title">
+                            <i class="fas fa-history"></i> 移动历史
+                        </div>
+                        <div class="move-history" id="move-history">
+                            {% for move in move_history|slice:":10" %}
+                            <div class="move-item">
+                                <span class="move-number">#{{ move.move_number }}</span>
+                                <span class="move-coords">({{ move.row|add:1 }}, {{ move.col|add:1 }})</span>
+                                <span class="move-player">{{ move.player.user.username }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- 当前玩家信息和控制面板 -->
@@ -137,7 +213,7 @@
                         {% for chat in chat_messages %}
                         <div class="chat-message {% if chat.player == player %}own{% endif %}">
                             <div class="chat-meta">
-                                <span class="chat-sender">{{ chat.player.user.username }}</span>
+                                <span class="chat-sender">{% if chat.player == player %}我{% else %}{{ chat.player.user.username }}{% endif %}</span>
                                 <span class="chat-time">{{ chat.timestamp|time:"H:i" }}</span>
                             </div>
                             <div class="chat-content">{{ chat.message }}</div>
@@ -153,21 +229,8 @@
                     </div>
                 </div>
 
-                <!-- 移动历史 -->
-                <div style="margin-top: 20px;">
-                    <div class="section-title">
-                        <i class="fas fa-history"></i> 移动历史
-                    </div>
-                    <div class="move-history" id="move-history">
-                        {% for move in move_history|slice:":10" %}
-                        <div class="move-item">
-                            <span class="move-number">#{{ move.move_number }}</span>
-                            <span class="move-coords">({{ move.row|add:1 }}, {{ move.col|add:1 }})</span>
-                            <span class="move-player">{{ move.player.user.username }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
+                <!-- 移动历史（已移至棋盘下方） -->
+                <!-- ...removed... -->
             </div>
         </div>
     </div>

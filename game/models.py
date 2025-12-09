@@ -70,6 +70,9 @@ class GomokuRoom(models.Model):
     # 通知消息的目标玩家
     notification_target = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name='targeted_notifications')
+    
+    # 棋色分配：True表示创建者是黑棋，False表示创建者是白棋
+    creator_is_black = models.BooleanField(default=True)
 
     def get_board(self):
         try:

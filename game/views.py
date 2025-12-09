@@ -62,12 +62,14 @@ def create_room(request):
     player = get_object_or_404(Player, user=request.user)
 
     # 创建新房间
+    import random
     room = GomokuRoom.objects.create(
         creator=player,
-        status='waiting'
+        status='waiting',
+        creator_is_black=random.choice([True, False])  # 随机决定创建者的棋色
     )
 
-    # 随机决定谁先走
+    # 暂时设置为创建者，对手加入后会根据棋色重新设置
     room.current_turn = player
     room.save()
 
@@ -90,6 +92,12 @@ def join_room(request, room_code):
         if room.opponent is None:
             room.opponent = player
             room.status = 'playing'
+            
+            # 确保黑棋先手
+            if room.creator_is_black:
+                room.current_turn = room.creator
+            else:
+                room.current_turn = room.opponent
             room.save()
 
             # 创建或更新好友统计
@@ -149,9 +157,9 @@ def game_room(request, room_code):
         # 获取移动历史
         move_history = MoveHistory.objects.filter(room=room).order_by('move_number')
 
-        # 确定玩家颜色
-        player_color = 'black' if (room.creator == player and room.current_turn == room.creator) or \
-                                  (room.opponent == player and room.current_turn == room.opponent) else 'white'
+        # 确定玩家颜色 - 使用存储的棋色信息
+        player_color = 'black' if (room.creator == player and room.creator_is_black) or \
+                                  (room.opponent == player and not room.creator_is_black) else 'white'
 
         return render(request, 'game/room.html', {
             'room': room,
@@ -201,8 +209,13 @@ def make_move(request, room_code):
         if board[row][col] != 0:
             return JsonResponse({'error': '该位置已有棋子'}, status=400)
 
-        # 放置棋子
-        stone_value = 1 if player == room.creator else 2
+        # 放置棋子 - 根据存储的棋色确定棋子值
+        # 如果创建者是黑棋，则创建者落子值为1(黑棋)，对手为2(白棋)
+        # 如果创建者是白棋，则创建者落子值为2(白棋)，对手为1(黑棋)
+        if room.creator_is_black:
+            stone_value = 1 if player == room.creator else 2
+        else:
+            stone_value = 2 if player == room.creator else 1
         board[row][col] = stone_value
         room.set_board(board)
 
@@ -334,6 +347,7 @@ def send_chat(request, room_code):
     try:
         data = json.loads(request.body)
         message = data.get('message', '').strip()
+        temp_id = data.get('tempId', '')  # 获取临时ID
 
         if not message:
             return JsonResponse({'error': '消息不能为空'}, status=400)
@@ -355,9 +369,11 @@ def send_chat(request, room_code):
             'success': True,
             'message': {
                 'id': chat.id,
+                'player_id': player.id,
                 'player': player.user.username,
-                'content': message,
-                'timestamp': chat.timestamp.isoformat()
+                'message': message,
+                'timestamp': chat.timestamp.isoformat(),
+                'tempId': temp_id  # 返回临时ID，用于前端识别
             }
         })
 
@@ -641,6 +657,8 @@ def get_room_state(request, room_code):
                 # 如果不应该显示给当前玩家，则不返回通知
                 notification_message = None
         
+        # 确定棋色 - 使用存储的棋色信息
+        
         return JsonResponse({
             'room': {
                 'status': room.status,
@@ -656,16 +674,19 @@ def get_room_state(request, room_code):
             'player': {
                 'id': player.id,
                 'username': player.user.username,
-                'color': 'black' if (room.creator == player and room.current_turn == room.creator) or \
-                                    (room.opponent == player and room.current_turn == room.opponent) else 'white'
+                'color': 'black' if (room.creator == player and room.creator_is_black) or \
+                                    (room.opponent == player and not room.creator_is_black) else 'white'
             },
             'opponent': {
                 'id': opponent.id if opponent else None,
                 'username': opponent.user.username if opponent else None,
+                'color': 'black' if (room.creator == opponent and room.creator_is_black) or \
+                                 (room.opponent == opponent and not room.creator_is_black) else 'white' if opponent else None
             },
             'chats': [
                 {
                     'id': chat.id,
+                    'player_id': chat.player.id,
                     'player': chat.player.user.username,
                     'message': chat.message,
                     'timestamp': chat.timestamp.isoformat()
@@ -1029,8 +1050,15 @@ def request_rematch(request, room_code):
                 room.undo_requested_by = None
                 room.draw_requested_by = None
                 
-                # 随机决定谁先走
-                room.current_turn = random.choice([room.creator, room.opponent])
+                # 重新随机分配棋色
+                import random
+                room.creator_is_black = random.choice([True, False])
+                
+                # 确保黑棋先手
+                if room.creator_is_black:
+                    room.current_turn = room.creator
+                else:
+                    room.current_turn = room.opponent
                 room.save()
                 
                 # 清除移动历史

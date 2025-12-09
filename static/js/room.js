@@ -15,8 +15,15 @@ class GomokuGame {
         this.lastUndoStatus = null;  // 初始化悔棋请求状态
         this.lastDrawStatus = null;  // 初始化和棋请求状态
 
+        // 用于去重移动历史项（key 格式：moveNumber|coords|player）
+        this.knownMoveKeys = new Set();
+
         this.initBoard();
         this.initEventListeners();
+
+        // 初始化已存在的移动历史到已知集合（如果模板里已经渲染了一些）
+        this.initKnownMoves();
+
         this.startPolling();
         this.startSessionUpdater();
     }
@@ -46,6 +53,72 @@ class GomokuGame {
                 cell.addEventListener('click', () => this.handleCellClick(row, col));
                 boardElement.appendChild(cell);
             }
+        }
+    }
+
+    // 初始化已存在的移动历史到 this.knownMoveKeys，防止重复显示
+    initKnownMoves() {
+        try {
+            const container = document.getElementById('move-history');
+            if (!container) return;
+            container.querySelectorAll('.move-item').forEach(item => {
+                const numEl = item.querySelector('.move-number');
+                const coordsEl = item.querySelector('.move-coords');
+                const playerEl = item.querySelector('.move-player');
+                const num = numEl ? numEl.textContent.replace('#','').trim() : '';
+                const coords = coordsEl ? coordsEl.textContent.trim() : '';
+                const player = playerEl ? playerEl.textContent.trim() : '';
+                const key = `${num}|${coords}|${player}`;
+                this.knownMoveKeys.add(key);
+            });
+        } catch (e) {
+            // 忽略初始化失败
+            console.error('initKnownMoves error', e);
+        }
+    }
+
+    // 将单个 move 对象追加到移动历史（去重、滚动、保留最大条目）
+    addMoveToHistory(move) {
+        try {
+            if (!move) return;
+
+            const container = document.getElementById('move-history');
+            if (!container) return;
+
+            // 提取字段。兼容不同后端返回格式
+            const moveNumber = (move.move_number !== undefined && move.move_number !== null) ? move.move_number : (move.number !== undefined ? move.number : '');
+            const row = (move.row !== undefined && move.row !== null) ? (Number(move.row) + 1) : (move.r !== undefined ? move.r : '');
+            const col = (move.col !== undefined && move.col !== null) ? (Number(move.col) + 1) : (move.c !== undefined ? move.c : '');
+            const coordsText = (row !== '' && col !== '') ? `(${row}, ${col})` : (move.coords || '');
+
+            let playerName = '';
+            if (move.player_username) playerName = move.player_username;
+            else if (move.player_name) playerName = move.player_name;
+            else if (move.player && typeof move.player === 'string') playerName = move.player;
+            else if (move.player && move.player.user && move.player.user.username) playerName = move.player.user.username;
+
+            const key = `${moveNumber}|${coordsText}|${playerName}`;
+
+            if (this.knownMoveKeys.has(key)) return; // 已存在，跳过
+
+            const el = document.createElement('div');
+            el.className = 'move-item';
+            el.innerHTML = `
+                <span class="move-number">#${this.escapeHtml(String(moveNumber))}</span>
+                <span class="move-coords">${this.escapeHtml(coordsText)}</span>
+                <span class="move-player">${this.escapeHtml(playerName)}</span>
+            `;
+
+            container.appendChild(el);
+            // 限制条目数，保留最新的 50 条
+            const maxItems = 50;
+            while (container.children.length > maxItems) {
+                container.removeChild(container.firstChild);
+            }
+            container.scrollTop = container.scrollHeight;
+            this.knownMoveKeys.add(key);
+        } catch (e) {
+            console.error('addMoveToHistory error', e);
         }
     }
 
@@ -100,6 +173,10 @@ class GomokuGame {
 
     async sendChat(message) {
         try {
+            // 清空输入框
+            document.getElementById('chat-input').value = '';
+
+            // 发送到服务器
             const response = await fetch(`/room/${this.roomCode}/chat/`, {
                 method: 'POST',
                 headers: {
@@ -111,12 +188,17 @@ class GomokuGame {
 
             const data = await response.json();
 
-            if (data.success) {
-                this.addChatMessage(data.message, true);
-                document.getElementById('chat-input').value = '';
+            if (!data.success) {
+                // 如果发送失败，显示错误消息
+                this.showMessage(data.error || '发送消息失败', 'error');
+                // 恢复输入框内容
+                document.getElementById('chat-input').value = message;
             }
         } catch (error) {
             console.error('发送消息失败:', error);
+            this.showMessage('网络错误，消息发送失败', 'error');
+            // 恢复输入框内容
+            document.getElementById('chat-input').value = message;
         }
     }
 
@@ -266,7 +348,16 @@ class GomokuGame {
             // 更新聊天消息
             if (data.chats && data.chats.length > 0) {
                 data.chats.forEach(chat => {
-                    this.addChatMessage(chat, false);
+                    // 检查消息是否已经存在
+                    const messageId = chat.id;
+                    const messageExists = document.querySelector(`.chat-message[data-message-id="${messageId}"]`);
+
+                    // 只有当消息不存在时才显示
+                    if (!messageExists) {
+                        const isOwnMessage = chat.player_id === this.playerId;
+                        this.addChatMessage(chat, isOwnMessage);
+                    }
+
                     this.lastChatId = Math.max(this.lastChatId, chat.id);
                 });
             }
@@ -275,6 +366,13 @@ class GomokuGame {
             if (data.last_move) {
                 this.lastMove = data.last_move;
                 this.highlightLastMove();
+                // 将最后一步追加到移动历史（实时更新）
+                this.addMoveToHistory(data.last_move);
+            }
+
+            // 如果后端一次性返回 move history 数组，也一并同步（兼容性）
+            if (data.move_history && Array.isArray(data.move_history)) {
+                data.move_history.forEach(m => this.addMoveToHistory(m));
             }
             
             // 处理通知
@@ -508,6 +606,17 @@ class GomokuGame {
                         modal.classList.remove('show');
                     }
                     
+                    // 清空移动历史（新的对局应从空历史开始）
+                    try {
+                        const moveContainer = document.getElementById('move-history');
+                        if (moveContainer) {
+                            moveContainer.innerHTML = '';
+                        }
+                        this.knownMoveKeys.clear();
+                    } catch (e) {
+                        // ignore
+                    }
+
                     // 重新启用棋盘点击
                     document.querySelectorAll('.cell').forEach(cell => {
                         cell.style.cursor = 'pointer';
@@ -578,6 +687,17 @@ class GomokuGame {
                 modal.classList.remove('show');
             }
             
+            // 清空移动历史（新的对局应从空历史开始）
+            try {
+                const moveContainer = document.getElementById('move-history');
+                if (moveContainer) {
+                    moveContainer.innerHTML = '';
+                }
+                this.knownMoveKeys.clear();
+            } catch (e) {
+                // ignore
+            }
+
             // 重新启用棋盘点击
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.style.cursor = 'pointer';
@@ -656,29 +776,42 @@ class GomokuGame {
         // 更新对手信息
         const opponentElement = document.getElementById('opponent-info');
         if (opponentData && opponentData.username) {
+            // 保留现有的统计信息（如果有）
+            const existingStatsElement = opponentElement.querySelector('.stats-grid');
+            let statsHtml = '';
+            
+            if (existingStatsElement) {
+                statsHtml = existingStatsElement.outerHTML;
+            }
+            
             opponentElement.innerHTML = `
                 <div class="player-name">${opponentData.username}</div>
-                <div class="player-color color-${playerData.color === 'black' ? 'white' : 'black'}">
-                    ${playerData.color === 'black' ? '白棋' : '黑棋'}
+                <div class="player-color color-${opponentData.color}">
+                    ${opponentData.color === 'black' ? '黑棋' : '白棋'}
                 </div>
+                ${statsHtml}
             `;
         } else {
-            opponentElement.innerHTML = `
-                <div class="player-name">等待对手...</div>
-                <div class="player-color color-waiting">未加入</div>
-                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
-                    <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
-                        分享房间链接给朋友:
-                    </p>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="room-link" value="${window.location.href}"
-                               readonly style="flex: 1; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
-                        <button class="btn btn-secondary" onclick="copyRoomLink()">
-                            <i class="fas fa-copy"></i>
-                        </button>
+            // 只有在对手不存在时才更新为等待状态
+            if (!opponentElement.querySelector('.player-name') || 
+                opponentElement.querySelector('.player-name').textContent === '等待对手...') {
+                opponentElement.innerHTML = `
+                    <div class="player-name">等待对手...</div>
+                    <div class="player-color color-waiting">未加入</div>
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                        <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                            分享房间链接给朋友:
+                        </p>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="room-link" value="${window.location.href}"
+                                   readonly style="flex: 1; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                            <button class="btn btn-secondary" onclick="copyRoomLink()">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         }
     }
 
@@ -687,13 +820,19 @@ class GomokuGame {
         const messageElement = document.createElement('div');
         messageElement.className = `chat-message ${isOwn ? 'own' : ''}`;
 
-        const time = new Date(chat.timestamp).toLocaleTimeString();
+        // 添加消息ID属性，用于识别消息
+        if (chat.id) {
+            messageElement.setAttribute('data-message-id', chat.id);
+        }
+
+        const time = new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const messageText = chat.message || chat.content || ''; // 兼容两种字段名
         messageElement.innerHTML = `
             <div class="chat-meta">
-                <span class="chat-sender">${chat.player}</span>
+                <span class="chat-sender">${isOwn ? '我' : chat.player}</span>
                 <span class="chat-time">${time}</span>
             </div>
-            <div class="chat-content">${this.escapeHtml(chat.message)}</div>
+            <div class="chat-content">${this.escapeHtml(messageText)}</div>
         `;
 
         chatMessages.appendChild(messageElement);
@@ -990,6 +1129,17 @@ class GomokuGame {
                         modal.classList.remove('show');
                     }
                     
+                    // 清空移动历史（新的对局应从空历史开始）
+                    try {
+                        const moveContainer = document.getElementById('move-history');
+                        if (moveContainer) {
+                            moveContainer.innerHTML = '';
+                        }
+                        this.knownMoveKeys.clear();
+                    } catch (e) {
+                        // ignore
+                    }
+
                     // 重新启用棋盘点击
                     document.querySelectorAll('.cell').forEach(cell => {
                         cell.style.cursor = 'pointer';
