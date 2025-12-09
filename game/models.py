@@ -61,6 +61,9 @@ class GomokuRoom(models.Model):
                                          related_name='undo_requests')
     draw_requested_by = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
                                          related_name='draw_requests')
+    # 再来一局请求相关字段
+    rematch_requested_by = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
+                                            related_name='rematch_requests')
 
     def get_board(self):
         try:

@@ -533,6 +533,7 @@ def get_room_state(request, room_code):
                 'board': room.get_board(),
                 'undo_requested_by': room.undo_requested_by.id if room.undo_requested_by else None,
                 'draw_requested_by': room.draw_requested_by.id if room.draw_requested_by else None,
+                'rematch_requested_by': room.rematch_requested_by.id if room.rematch_requested_by else None,
             },
             'player': {
                 'id': player.id,
@@ -877,6 +878,72 @@ def get_invitation_status(request, invitation_id):
 @login_required
 @require_POST
 @csrf_exempt
+def request_rematch(request, room_code):
+    """处理再来一局请求"""
+    player = get_object_or_404(Player, user=request.user)
+    
+    try:
+        room = GomokuRoom.objects.get(room_code=room_code)
+        
+        # 验证用户是否在房间中
+        if player not in [room.creator, room.opponent]:
+            return JsonResponse({'error': '你不在这个房间中'}, status=403)
+            
+        # 检查游戏是否已结束
+        if room.status != 'finished':
+            return JsonResponse({'error': '游戏尚未结束'}, status=400)
+            
+        # 确定对手
+        opponent = room.opponent if room.opponent != player else room.creator
+        
+        # 检查是否已经有再来一局请求
+        if room.rematch_requested_by:
+            if room.rematch_requested_by == player:
+                return JsonResponse({'error': '你已经发送过再来一局请求，请等待对方回应'}, status=400)
+            else:
+                # 对方发送了再来一局请求，当前玩家是回应方
+                # 重置游戏状态
+                room.status = 'playing'
+                room.board_state = json.dumps([[0 for _ in range(room.board_size)] for _ in range(room.board_size)])
+                room.winner = None
+                room.is_draw = False
+                room.rematch_requested_by = None
+                room.undo_requested_by = None
+                room.draw_requested_by = None
+                
+                # 随机决定谁先走
+                room.current_turn = random.choice([room.creator, room.opponent])
+                room.save()
+                
+                # 清除移动历史
+                MoveHistory.objects.filter(room=room).delete()
+                
+                return JsonResponse({
+                    'success': True,
+                    'status': room.status,
+                    'current_turn': room.current_turn.id,
+                    'board': room.get_board(),
+                    'message': f'双方同意再来一局，{room.current_turn.user.username}先手'
+                })
+        
+        # 发送再来一局请求
+        room.rematch_requested_by = player
+        room.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'已向{opponent.user.username}发送再来一局请求，等待对方回应'
+        })
+        
+    except GomokuRoom.DoesNotExist:
+        return JsonResponse({'error': '房间不存在'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+@csrf_exempt
 def update_session(request):
     """更新会话活动时间"""
     player = Player.objects.get(user=request.user)
@@ -899,3 +966,47 @@ def update_session(request):
         'success': True,
         'message': '会话活动时间已更新'
     })
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def reject_rematch(request, room_code):
+    """处理拒绝再来一局请求"""
+    player = get_object_or_404(Player, user=request.user)
+
+    try:
+        room = GomokuRoom.objects.get(room_code=room_code)
+
+        # 验证用户是否在房间中
+        if player not in [room.creator, room.opponent]:
+            return JsonResponse({'error': '你不在这个房间中'}, status=403)
+
+        # 检查游戏是否已结束
+        if room.status != 'finished':
+            return JsonResponse({'error': '游戏尚未结束'}, status=400)
+
+        # 检查是否有再来一局请求
+        if not room.rematch_requested_by:
+            return JsonResponse({'error': '没有再来一局请求需要拒绝'}, status=400)
+            
+        # 检查是否是对方发起的请求
+        if room.rematch_requested_by == player:
+            return JsonResponse({'error': '不能拒绝自己发起的请求'}, status=400)
+            
+        # 确定对手
+        opponent = room.rematch_requested_by
+        
+        # 清除再来一局请求
+        room.rematch_requested_by = None
+        room.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'已拒绝{opponent.user.username}的再来一局请求'
+        })
+        
+    except GomokuRoom.DoesNotExist:
+        return JsonResponse({'error': '房间不存在'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)

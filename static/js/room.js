@@ -10,6 +10,8 @@ class GomokuGame {
         this.lastMove = null;
         this.lastChatId = 0;
         this.pollingInterval = null;
+        this.gameStatus = null;  // 初始化游戏状态
+        this.lastRematchStatus = null;  // 初始化再来一局请求状态
 
         this.initBoard();
         this.initEventListeners();
@@ -21,6 +23,15 @@ class GomokuGame {
         const boardElement = document.getElementById('chessboard');
         boardElement.innerHTML = '';
         boardElement.style.gridTemplateColumns = `repeat(${this.boardSize}, 1fr)`;
+
+        // 初始化棋盘数据数组
+        this.board = [];
+        for (let row = 0; row < this.boardSize; row++) {
+            this.board[row] = [];
+            for (let col = 0; col < this.boardSize; col++) {
+                this.board[row][col] = 0;
+            }
+        }
 
         // 创建棋盘网格
         for (let row = 0; row < this.boardSize; row++) {
@@ -172,6 +183,11 @@ class GomokuGame {
                 console.error('获取房间状态失败:', data.error);
                 return;
             }
+            
+            // 添加调试日志
+            if (data.room.rematch_requested_by) {
+                console.log(`再来一局请求状态: ${data.room.rematch_requested_by === this.playerId ? '自己请求' : '对手请求'}`);
+            }
 
             // 更新棋盘
             if (data.room.board) {
@@ -262,6 +278,115 @@ class GomokuGame {
                     drawBtn.disabled = false;
                 }
             }
+            
+            // 检查再来一局请求状态
+            const prevRematchStatus = this.lastRematchStatus;
+            const currentRematchStatus = data.room.rematch_requested_by;
+            
+            // 检查是否从有请求状态变为无请求状态，且之前是自己发起的请求
+            if (prevRematchStatus === this.playerId && !currentRematchStatus && this.gameStatus === 'finished') {
+                // 自己的请求被对方拒绝了
+                this.showMessage('对方拒绝了你的再来一局请求', 'info');
+                
+                // 重置按钮状态
+                const playAgainBtn = document.getElementById('play-again-btn');
+                if (playAgainBtn) {
+                    playAgainBtn.innerHTML = '<i class="fas fa-redo"></i> 再来一局';
+                    playAgainBtn.classList.remove('btn-success');
+                    playAgainBtn.classList.add('btn-primary');
+                    playAgainBtn.disabled = false;
+                }
+            }
+            
+            // 只有状态发生变化时才更新UI
+            if (prevRematchStatus !== currentRematchStatus) {
+                this.lastRematchStatus = currentRematchStatus;
+                
+                if (currentRematchStatus) {
+                if (data.room.rematch_requested_by !== this.playerId) {
+                    // 对手发送了再来一局请求
+                    this.showMessage('对手请求再来一局，点击再来一局按钮同意，或点击离开按钮拒绝', 'info');
+                    // 更新再来一局按钮文本
+                    const playAgainBtn = document.getElementById('play-again-btn');
+                    if (playAgainBtn) {
+                        playAgainBtn.innerHTML = '<i class="fas fa-check"></i> 同意再来一局';
+                        playAgainBtn.classList.remove('btn-primary');
+                        playAgainBtn.classList.add('btn-success');
+                        playAgainBtn.disabled = false;
+                    }
+                    // 更新离开按钮文本，表示可以拒绝请求
+                    const leaveBtn = document.getElementById('leave-game-btn');
+                    if (leaveBtn) {
+                        leaveBtn.innerHTML = '<i class="fas fa-times"></i> 拒绝再来一局';
+                        leaveBtn.classList.remove('btn-secondary');
+                        leaveBtn.classList.add('btn-danger');
+                    }
+                } else {
+                    // 自己发送了再来一局请求
+                    // 更新再来一局按钮文本
+                    const playAgainBtn = document.getElementById('play-again-btn');
+                    if (playAgainBtn) {
+                        playAgainBtn.innerHTML = '<i class="fas fa-clock"></i> 等待回应';
+                        playAgainBtn.disabled = true;
+                    }
+                }
+            } else {
+                // 没有再来一局请求，或者请求已被处理
+                // 检查是否是游戏重新开始（从有请求变为无请求）
+                if (prevRematchStatus && data.room.status === 'playing' && this.gameStatus === 'finished') {
+                    // 游戏重新开始
+                    this.showMessage('游戏重新开始', 'success');
+                    
+                    // 隐藏游戏结束弹窗
+                    const modal = document.getElementById('game-over-modal');
+                    if (modal) {
+                        modal.classList.remove('show');
+                    }
+                    
+                    // 重新启用棋盘点击
+                    document.querySelectorAll('.cell').forEach(cell => {
+                        cell.style.cursor = 'pointer';
+                        cell.onclick = null;
+                        const row = parseInt(cell.dataset.row);
+                        const col = parseInt(cell.dataset.col);
+                        cell.addEventListener('click', () => this.handleCellClick(row, col));
+                    });
+                    
+                    // 重新启用聊天输入
+                    const chatInput = document.getElementById('chat-input');
+                    const sendChatBtn = document.getElementById('send-chat');
+                    if (chatInput) chatInput.disabled = false;
+                    if (sendChatBtn) sendChatBtn.disabled = false;
+                    
+                    // 重新启用悔棋和和棋按钮
+                    const undoBtn = document.getElementById('undo-btn');
+                    const drawBtn = document.getElementById('draw-btn');
+                    if (undoBtn) undoBtn.disabled = false;
+                    if (drawBtn) drawBtn.disabled = false;
+                    
+                    // 重新开始轮询（如果已停止）
+                    if (!this.pollingInterval) {
+                        this.startPolling();
+                    }
+                }
+                
+                // 重置按钮状态
+                const playAgainBtn = document.getElementById('play-again-btn');
+                if (playAgainBtn) {
+                    playAgainBtn.innerHTML = '<i class="fas fa-redo"></i> 再来一局';
+                    playAgainBtn.classList.remove('btn-success');
+                    playAgainBtn.classList.add('btn-primary');
+                    playAgainBtn.disabled = false;
+                }
+                // 重置离开按钮状态
+                const leaveBtn = document.getElementById('leave-game-btn');
+                if (leaveBtn) {
+                    leaveBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 离开';
+                    leaveBtn.classList.remove('btn-danger');
+                    leaveBtn.classList.add('btn-secondary');
+                }
+                }
+            }
 
         } catch (error) {
             console.error('更新房间状态失败:', error);
@@ -272,21 +397,74 @@ class GomokuGame {
         const statusElement = document.getElementById('game-status');
         const turnIndicator = document.getElementById('turn-indicator');
 
+        // 检查游戏状态是否从非结束状态变为结束状态
+        const wasNotFinished = this.gameStatus !== 'finished';
+        const wasFinished = this.gameStatus === 'finished';
+        this.gameStatus = roomData.status;
+
+        // 检查游戏是否从结束状态变为进行中状态（游戏重新开始）
+        if (wasFinished && roomData.status === 'playing') {
+            // 游戏重新开始
+            this.showMessage('游戏重新开始', 'success');
+            
+            // 隐藏游戏结束弹窗
+            const modal = document.getElementById('game-over-modal');
+            if (modal) {
+                modal.classList.remove('show');
+            }
+            
+            // 重新启用棋盘点击
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.style.cursor = 'pointer';
+                cell.onclick = null;
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                cell.addEventListener('click', () => this.handleCellClick(row, col));
+            });
+            
+            // 重新启用聊天输入
+            const chatInput = document.getElementById('chat-input');
+            const sendChatBtn = document.getElementById('send-chat');
+            if (chatInput) chatInput.disabled = false;
+            if (sendChatBtn) sendChatBtn.disabled = false;
+            
+            // 重新启用悔棋和和棋按钮
+            const undoBtn = document.getElementById('undo-btn');
+            const drawBtn = document.getElementById('draw-btn');
+            if (undoBtn) undoBtn.disabled = false;
+            if (drawBtn) drawBtn.disabled = false;
+            
+            // 重新开始轮询（如果已停止）
+            if (!this.pollingInterval) {
+                this.startPolling();
+            }
+        }
+
         if (roomData.status === 'finished') {
-            if (roomData.winner === this.playerId) {
-                statusElement.textContent = '你赢了！';
-                statusElement.className = 'status-winner';
-                this.showMessage('恭喜获胜！', 'success');
-            } else if (roomData.is_draw) {
-                statusElement.textContent = '和棋';
-                statusElement.className = 'status-draw';
-            } else {
-                statusElement.textContent = '你输了';
-                statusElement.className = 'status-lose';
+            // 检查弹窗是否已经显示，避免重复显示
+            const modal = document.getElementById('game-over-modal');
+            const isModalAlreadyShown = modal && modal.classList.contains('show');
+
+            if (!isModalAlreadyShown) {
+                if (roomData.winner === this.playerId) {
+                    statusElement.textContent = '你赢了！';
+                    statusElement.className = 'status-winner';
+                    this.showMessage('恭喜获胜！', 'success');
+                    this.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
+                } else if (roomData.is_draw) {
+                    statusElement.textContent = '和棋';
+                    statusElement.className = 'status-draw';
+                    this.showGameOverModal('和棋', '这局游戏以平局结束！');
+                } else {
+                    statusElement.textContent = '你输了';
+                    statusElement.className = 'status-lose';
+                    this.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！');
+                }
             }
 
-            // 停止轮询
-            this.stopPolling();
+            // 游戏结束时不要停止轮询，以便接收再来一局的请求
+            // 注释掉停止轮询的代码
+            // this.stopPolling();
 
         } else if (roomData.status === 'playing') {
             if (this.currentTurn === this.playerId) {
@@ -406,9 +584,12 @@ class GomokuGame {
     }
 
     startPolling() {
+        // 如果已经有轮询在运行，先停止它
+        this.stopPolling();
+        // 开始新的轮询，减少轮询间隔到500毫秒，提高响应速度
         this.pollingInterval = setInterval(() => {
             this.updateRoomState();
-        }, 2000); // 每2秒轮询一次
+        }, 500); // 每0.5秒轮询一次
     }
 
     stopPolling() {
@@ -443,6 +624,248 @@ class GomokuGame {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // 显示游戏结束弹窗
+    showGameOverModal(title, message) {
+        try {
+            const modal = document.getElementById('game-over-modal');
+            const titleElement = document.getElementById('game-result-title');
+            const messageElement = document.getElementById('game-result-message');
+            const statsElement = document.getElementById('game-stats');
+
+            // 检查元素是否存在
+            if (!modal || !titleElement || !messageElement || !statsElement) {
+                this.showMessage('游戏结束，但无法显示结果弹窗', 'error');
+                return;
+            }
+
+            // 设置标题和消息
+            titleElement.textContent = title;
+            messageElement.textContent = message;
+
+            // 设置游戏统计信息
+            let totalMoves = 0;
+            try {
+                totalMoves = this.getTotalMoves();
+            } catch (error) {
+                // 静默处理错误
+            }
+
+            let gameDuration = '未知';
+            try {
+                gameDuration = this.getGameDuration();
+            } catch (error) {
+                // 静默处理错误
+            }
+
+            statsElement.innerHTML = `
+                <div class="stat-box">
+                    <div class="stat-label">总步数</div>
+                    <div class="stat-value">${totalMoves}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">游戏时长</div>
+                    <div class="stat-value">${gameDuration}</div>
+                </div>
+            `;
+
+            // 显示弹窗
+            modal.classList.add('show');
+
+            // 移除旧的事件监听器，避免重复绑定
+            const leaveBtn = document.getElementById('leave-game-btn');
+            const playAgainBtn = document.getElementById('play-again-btn');
+            
+            // 克隆节点以移除所有事件监听器
+            if (leaveBtn) {
+                const newLeaveBtn = leaveBtn.cloneNode(true);
+                leaveBtn.parentNode.replaceChild(newLeaveBtn, leaveBtn);
+                newLeaveBtn.addEventListener('click', () => {
+                    // 检查是否有对手的再来一局请求
+                    if (this.lastRematchStatus && this.lastRematchStatus !== this.playerId) {
+                        // 有对手的再来一局请求，拒绝它
+                        this.rejectRematch();
+                    } else {
+                        // 没有请求或自己的请求，直接离开
+                        this.leaveGame();
+                    }
+                });
+            }
+            
+            if (playAgainBtn) {
+                const newPlayAgainBtn = playAgainBtn.cloneNode(true);
+                playAgainBtn.parentNode.replaceChild(newPlayAgainBtn, playAgainBtn);
+                newPlayAgainBtn.addEventListener('click', () => {
+                    this.playAgain();
+                });
+            }
+        } catch (error) {
+            this.showMessage('游戏结束，但无法显示结果弹窗', 'error');
+        }
+    }
+
+    // 计算总步数
+    getTotalMoves() {
+        let count = 0;
+        try {
+            // 确保棋盘数据存在
+            if (!this.board || !Array.isArray(this.board)) {
+                return 0;
+            }
+
+            for (let row = 0; row < this.boardSize; row++) {
+                // 检查行是否存在
+                if (!this.board[row] || !Array.isArray(this.board[row])) {
+                    continue;
+                }
+
+                for (let col = 0; col < this.boardSize; col++) {
+                    if (this.board[row][col] !== 0 && this.board[row][col] !== undefined && this.board[row][col] !== null) {
+                        count++;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('计算总步数出错:', error);
+            return 0;
+        }
+        return count;
+    }
+
+    // 计算游戏时长
+    getGameDuration() {
+        // 这里应该从服务器获取游戏开始时间，这里简化处理
+        return '未知';
+    }
+
+    // 离开游戏
+    leaveGame() {
+        window.location.href = '/lobby/';
+    }
+
+    // 拒绝再来一局请求
+    async rejectRematch() {
+        try {
+            // 向服务器发送拒绝请求
+            const response = await fetch(`/room/${this.roomCode}/reject_rematch/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showMessage(data.message || '已拒绝再来一局请求', 'success');
+                
+                // 重置按钮状态
+                const playAgainBtn = document.getElementById('play-again-btn');
+                if (playAgainBtn) {
+                    playAgainBtn.innerHTML = '<i class="fas fa-redo"></i> 再来一局';
+                    playAgainBtn.classList.remove('btn-success');
+                    playAgainBtn.classList.add('btn-primary');
+                    playAgainBtn.disabled = false;
+                }
+                
+                const leaveBtn = document.getElementById('leave-game-btn');
+                if (leaveBtn) {
+                    leaveBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 离开';
+                    leaveBtn.classList.remove('btn-danger');
+                    leaveBtn.classList.add('btn-secondary');
+                }
+                
+                // 更新状态，表示已处理请求
+                this.lastRematchStatus = null;
+            } else {
+                this.showMessage(data.error || '操作失败', 'error');
+            }
+        } catch (error) {
+            console.error('拒绝再来一局请求失败:', error);
+            this.showMessage('网络错误，请重试', 'error');
+        }
+    }
+
+    // 再来一局
+    async playAgain() {
+        // 防止重复点击
+        const playAgainBtn = document.getElementById('play-again-btn');
+        if (playAgainBtn && playAgainBtn.disabled) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/room/${this.roomCode}/rematch/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.status) {
+                    // 再来一局成功，游戏重新开始
+                    this.showMessage(data.message || '游戏重新开始', 'success');
+                    this.updateBoard(data.board);
+                    this.gameStatus = data.status;
+                    this.currentTurn = data.current_turn;
+                    this.updateGameState({
+                        status: data.status,
+                        current_turn: { id: data.current_turn },
+                        winner: null,
+                        is_draw: false
+                    });
+                    
+                    // 隐藏游戏结束弹窗
+                    const modal = document.getElementById('game-over-modal');
+                    if (modal) {
+                        modal.classList.remove('show');
+                    }
+                    
+                    // 重新启用棋盘点击
+                    document.querySelectorAll('.cell').forEach(cell => {
+                        cell.style.cursor = 'pointer';
+                        cell.onclick = null;
+                        const row = parseInt(cell.dataset.row);
+                        const col = parseInt(cell.dataset.col);
+                        cell.addEventListener('click', () => this.handleCellClick(row, col));
+                    });
+                    
+                    // 重新启用聊天输入
+                    const chatInput = document.getElementById('chat-input');
+                    const sendChatBtn = document.getElementById('send-chat');
+                    if (chatInput) chatInput.disabled = false;
+                    if (sendChatBtn) sendChatBtn.disabled = false;
+                    
+                    // 重新启用悔棋和和棋按钮
+                    const undoBtn = document.getElementById('undo-btn');
+                    const drawBtn = document.getElementById('draw-btn');
+                    if (undoBtn) undoBtn.disabled = false;
+                    if (drawBtn) drawBtn.disabled = false;
+                    
+                    // 重新开始轮询
+                    this.startPolling();
+                } else {
+                    // 发送再来一局请求成功
+                    this.showMessage(data.message || '再来一局请求已发送', 'success');
+                    
+                    // 更新按钮状态
+                    const playAgainBtn = document.getElementById('play-again-btn');
+                    if (playAgainBtn) {
+                        playAgainBtn.innerHTML = '<i class="fas fa-clock"></i> 等待回应';
+                        playAgainBtn.disabled = true;
+                    }
+                }
+            } else {
+                this.showMessage(data.error || '再来一局请求失败', 'error');
+            }
+        } catch (error) {
+            console.error('再来一局请求失败:', error);
+            this.showMessage('网络错误，请重试', 'error');
+        }
     }
 
     // 启动会话更新器，定期更新用户在线状态
@@ -483,6 +906,24 @@ document.addEventListener('DOMContentLoaded', function() {
             window.playerId,
             window.playerColor
         );
+
+        // 如果游戏已结束，显示游戏结束弹窗
+        const statusElement = document.getElementById('game-status');
+        if (statusElement) {
+            const statusText = statusElement.textContent;
+            if (statusText.includes('你赢了') || statusText.includes('你输了') || statusText.includes('和棋')) {
+                // 延迟一点时间再显示弹窗，确保页面完全加载
+                setTimeout(() => {
+                    if (statusText.includes('你赢了')) {
+                        window.game.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
+                    } else if (statusText.includes('和棋')) {
+                        window.game.showGameOverModal('和棋', '这局游戏以平局结束！');
+                    } else if (statusText.includes('你输了')) {
+                        window.game.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！');
+                    }
+                }, 500);
+            }
+        }
     }
 });
 

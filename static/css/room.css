@@ -312,6 +312,121 @@
 }
 
 
+/* 游戏结束弹窗样式 */
+.modal {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    z-index: 10000 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    animation: fadeIn 0.3s ease !important;
+}
+
+.modal.show {
+    display: flex !important;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+    padding: 20px;
+    background-color: #667eea;
+    color: white;
+    text-align: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.modal-body {
+    padding: 25px;
+    text-align: center;
+}
+
+#game-result-message {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+#game-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.stat-box {
+    text-align: center;
+}
+
+.stat-box .stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.stat-box .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #667eea;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    background-color: #f8f9fa;
+}
+
+.modal-footer .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.modal-footer .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
     .game-container {

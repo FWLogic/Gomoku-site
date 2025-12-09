@@ -181,6 +181,27 @@
     </script>
 
     {% csrf_token %}
+
+    <!-- 游戏结束弹窗 -->
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="game-result-title">游戏结束</h2>
+            </div>
+            <div class="modal-body">
+                <div id="game-result-message"></div>
+                <div id="game-stats"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="leave-game-btn" class="btn btn-secondary">
+                    <i class="fas fa-sign-out-alt"></i> 离开
+                </button>
+                <button id="play-again-btn" class="btn btn-primary">
+                    <i class="fas fa-redo"></i> 再来一局
+                </button>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block extra_js %}
@@ -201,6 +222,15 @@
             cell.style.cursor = 'not-allowed';
             cell.onclick = null;
         });
+
+        // 如果游戏已结束，显示游戏结束弹窗
+        {% if room.winner == player %}
+        window.game.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
+        {% elif room.is_draw %}
+        window.game.showGameOverModal('和棋', '这局游戏以平局结束！');
+        {% else %}
+        window.game.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！');
+        {% endif %}
     });
     {% endif %}
 </script>
