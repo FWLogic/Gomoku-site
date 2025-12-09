@@ -414,13 +414,17 @@ def request_undo(request, room_code):
                 undo_requester = room.undo_requested_by  # 先保存请求悔棋的玩家
                 room.undo_requested_by = None  # 清除悔棋请求
                 room.current_turn = undo_requester  # 设置为请求悔棋的玩家
+
+                # 设置通知消息，只发送给请求悔棋的玩家
+                room.notification_message = '悔棋成功'
+                room.notification_target = undo_requester  # 设置通知目标为请求悔棋的玩家
                 room.save()
 
                 return JsonResponse({
                     'success': True,
                     'board': board,
                     'current_turn': player.id,
-                    'message': '悔棋成功'
+                    'message': '已同意悔棋请求'
                 })
 
         # 发送悔棋请求
@@ -432,6 +436,98 @@ def request_undo(request, room_code):
             'message': f'已向{opponent.user.username}发送悔棋请求，等待对方回应'
         })
 
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def reject_undo(request, room_code):
+    """处理拒绝悔棋请求"""
+    player = get_object_or_404(Player, user=request.user)
+
+    try:
+        room = GomokuRoom.objects.get(room_code=room_code)
+
+        # 验证用户是否在房间中
+        if player not in [room.creator, room.opponent]:
+            return JsonResponse({'error': '你不在这个房间中'}, status=403)
+
+        # 检查游戏是否正在进行中
+        if room.status != 'playing':
+            return JsonResponse({'error': '游戏未进行中'}, status=400)
+
+        # 检查是否有悔棋请求
+        if not room.undo_requested_by:
+            return JsonResponse({'error': '没有悔棋请求需要拒绝'}, status=400)
+
+        # 检查是否是对方发起的请求
+        if room.undo_requested_by == player:
+            return JsonResponse({'error': '不能拒绝自己发起的请求'}, status=400)
+
+        # 确定对手
+        opponent = room.undo_requested_by
+
+        # 清除悔棋请求并设置通知消息，只发送给悔棋请求者
+        room.undo_requested_by = None
+        room.notification_message = f'你的悔棋请求被{player.user.username}拒绝了'
+        room.notification_target = opponent  # 设置通知目标为悔棋请求者
+        room.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'已拒绝{opponent.user.username}的悔棋请求'
+        })
+
+    except GomokuRoom.DoesNotExist:
+        return JsonResponse({'error': '房间不存在'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def reject_draw(request, room_code):
+    """处理拒绝和棋请求"""
+    player = get_object_or_404(Player, user=request.user)
+
+    try:
+        room = GomokuRoom.objects.get(room_code=room_code)
+
+        # 验证用户是否在房间中
+        if player not in [room.creator, room.opponent]:
+            return JsonResponse({'error': '你不在这个房间中'}, status=403)
+
+        # 检查游戏是否正在进行中
+        if room.status != 'playing':
+            return JsonResponse({'error': '游戏未进行中'}, status=400)
+
+        # 检查是否有和棋请求
+        if not room.draw_requested_by:
+            return JsonResponse({'error': '没有和棋请求需要拒绝'}, status=400)
+
+        # 检查是否是对方发起的请求
+        if room.draw_requested_by == player:
+            return JsonResponse({'error': '不能拒绝自己发起的请求'}, status=400)
+
+        # 确定对手
+        opponent = room.draw_requested_by
+
+        # 清除和棋请求并设置通知消息，只发送给和棋请求者
+        room.draw_requested_by = None
+        room.notification_message = f'你的和棋请求被{player.user.username}拒绝了'
+        room.notification_target = opponent  # 设置通知目标为和棋请求者
+        room.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'已拒绝{opponent.user.username}的和棋请求'
+        })
+
+    except GomokuRoom.DoesNotExist:
+        return JsonResponse({'error': '房间不存在'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
@@ -524,6 +620,27 @@ def get_room_state(request, room_code):
 
         opponent = room.opponent if room.opponent != player else room.creator
 
+        # 获取通知消息（如果有）
+        notification_message = room.notification_message
+        should_show_notification = False
+
+        if notification_message:
+            # 如果有指定目标玩家，只发送给该玩家
+            if room.notification_target:
+                should_show_notification = room.notification_target == player
+            # 如果没有指定目标玩家，默认显示给所有玩家
+            else:
+                should_show_notification = True
+
+            # 清除通知消息，确保只显示一次
+            if should_show_notification:
+                room.notification_message = None
+                room.notification_target = None
+                room.save()
+            else:
+                # 如果不应该显示给当前玩家，则不返回通知
+                notification_message = None
+        
         return JsonResponse({
             'room': {
                 'status': room.status,
@@ -534,6 +651,7 @@ def get_room_state(request, room_code):
                 'undo_requested_by': room.undo_requested_by.id if room.undo_requested_by else None,
                 'draw_requested_by': room.draw_requested_by.id if room.draw_requested_by else None,
                 'rematch_requested_by': room.rematch_requested_by.id if room.rematch_requested_by else None,
+                'notification_message': notification_message,
             },
             'player': {
                 'id': player.id,

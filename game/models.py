@@ -64,6 +64,12 @@ class GomokuRoom(models.Model):
     # 再来一局请求相关字段
     rematch_requested_by = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
                                             related_name='rematch_requests')
+    
+    # 通知消息
+    notification_message = models.TextField(blank=True, null=True)
+    # 通知消息的目标玩家
+    notification_target = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='targeted_notifications')
 
     def get_board(self):
         try:
