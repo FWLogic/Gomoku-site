@@ -108,8 +108,6 @@ class GomokuGame {
     }
 
     async requestUndo() {
-        if (!confirm('确定要悔棋吗？')) return;
-
         try {
             const response = await fetch(`/room/${this.roomCode}/undo/`, {
                 method: 'POST',
@@ -121,20 +119,22 @@ class GomokuGame {
             const data = await response.json();
 
             if (data.success) {
-                this.updateBoard(data.board);
-                this.showMessage('悔棋成功', 'success');
+                if (data.board) {
+                    // 悔棋成功，更新棋盘
+                    this.updateBoard(data.board);
+                    this.currentTurn = data.current_turn;
+                }
+                this.showMessage(data.message || '操作成功', 'success');
             } else {
-                this.showMessage(data.error || '悔棋失败', 'error');
+                this.showMessage(data.error || '操作失败', 'error');
             }
         } catch (error) {
-            console.error('悔棋失败:', error);
+            console.error('悔棋请求失败:', error);
             this.showMessage('网络错误，请重试', 'error');
         }
     }
 
     async requestDraw() {
-        if (!confirm('确定要和棋吗？')) return;
-
         try {
             const response = await fetch(`/room/${this.roomCode}/draw/`, {
                 method: 'POST',
@@ -146,8 +146,14 @@ class GomokuGame {
             const data = await response.json();
 
             if (data.success) {
-                this.showMessage('游戏以和棋结束', 'success');
-                this.updateGameState(data);
+                if (data.status) {
+                    // 和棋成功，游戏结束
+                    this.showMessage(data.message || '游戏以和棋结束', 'success');
+                    this.updateGameState(data);
+                } else {
+                    // 发送和棋请求成功
+                    this.showMessage(data.message || '和棋请求已发送', 'success');
+                }
             } else {
                 this.showMessage(data.error || '和棋请求失败', 'error');
             }
@@ -191,6 +197,70 @@ class GomokuGame {
             if (data.last_move) {
                 this.lastMove = data.last_move;
                 this.highlightLastMove();
+            }
+            
+            // 检查悔棋请求状态
+            if (data.room.undo_requested_by) {
+                if (data.room.undo_requested_by !== this.playerId) {
+                    // 对方发送了悔棋请求
+                    this.showMessage('对手请求悔棋，点击悔棋按钮同意', 'info');
+                    // 更新悔棋按钮文本
+                    const undoBtn = document.getElementById('undo-btn');
+                    if (undoBtn) {
+                        undoBtn.innerHTML = '<i class="fas fa-check"></i> 同意悔棋';
+                        undoBtn.classList.remove('btn-warning');
+                        undoBtn.classList.add('btn-success');
+                    }
+                } else {
+                    // 自己发送了悔棋请求
+                    // 更新悔棋按钮文本
+                    const undoBtn = document.getElementById('undo-btn');
+                    if (undoBtn) {
+                        undoBtn.innerHTML = '<i class="fas fa-clock"></i> 等待回应';
+                        undoBtn.disabled = true;
+                    }
+                }
+            } else {
+                // 没有悔棋请求，重置按钮状态
+                const undoBtn = document.getElementById('undo-btn');
+                if (undoBtn && data.room.status === 'playing') {
+                    undoBtn.innerHTML = '<i class="fas fa-undo"></i> 悔棋';
+                    undoBtn.classList.remove('btn-success');
+                    undoBtn.classList.add('btn-warning');
+                    undoBtn.disabled = false;
+                }
+            }
+            
+            // 检查和棋请求状态
+            if (data.room.draw_requested_by) {
+                if (data.room.draw_requested_by !== this.playerId) {
+                    // 对方发送了和棋请求
+                    this.showMessage('对手请求和棋，点击和棋按钮同意', 'info');
+                    // 更新和棋按钮文本
+                    const drawBtn = document.getElementById('draw-btn');
+                    if (drawBtn) {
+                        drawBtn.innerHTML = '<i class="fas fa-check"></i> 同意和棋';
+                        drawBtn.classList.remove('btn-secondary');
+                        drawBtn.classList.add('btn-success');
+                    }
+                } else {
+                    // 自己发送了和棋请求
+                    // 更新和棋按钮文本
+                    const drawBtn = document.getElementById('draw-btn');
+                    if (drawBtn) {
+                        drawBtn.innerHTML = '<i class="fas fa-clock"></i> 等待回应';
+                        drawBtn.disabled = true;
+                    }
+                }
+            } else {
+                // 没有和棋请求，重置按钮状态
+                const drawBtn = document.getElementById('draw-btn');
+                if (drawBtn && data.room.status === 'playing') {
+                    drawBtn.innerHTML = '<i class="fas fa-handshake"></i> 和棋';
+                    drawBtn.classList.remove('btn-success');
+                    drawBtn.classList.add('btn-secondary');
+                    drawBtn.disabled = false;
+                }
             }
 
         } catch (error) {
@@ -331,9 +401,7 @@ class GomokuGame {
 
         // 离开房间按钮
         document.getElementById('leave-btn').addEventListener('click', () => {
-            if (confirm('确定要离开房间吗？')) {
-                window.location.href = '/lobby/';
-            }
+            window.location.href = '/lobby/';
         });
     }
 

@@ -55,6 +55,12 @@ class GomokuRoom(models.Model):
 
     # 存储棋盘状态
     board_state = models.TextField(default='[]')  # JSON格式存储棋盘
+    
+    # 悔棋和和棋请求相关字段
+    undo_requested_by = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name='undo_requests')
+    draw_requested_by = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name='draw_requests')
 
     def get_board(self):
         try:

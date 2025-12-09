@@ -133,7 +133,7 @@ body {
 /* 大厅样式 */
 .lobby-grid {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 25px;
     margin-top: 20px;
 }

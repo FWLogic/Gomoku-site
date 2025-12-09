@@ -379,26 +379,57 @@ def request_undo(request, room_code):
         if room.status != 'playing':
             return JsonResponse({'error': '游戏未进行中'}, status=400)
 
+        # 确定对手
+        opponent = room.opponent if room.opponent != player else room.creator
+
         # 获取最后两步移动
         last_moves = MoveHistory.objects.filter(room=room).order_by('-move_number')[:2]
 
-        if len(last_moves) < 2:
+        if len(last_moves) < 1:
             return JsonResponse({'error': '没有可悔棋的移动'}, status=400)
 
-        # 移除最后两步
-        board = room.get_board()
-        for move in last_moves[:2]:
-            board[move.row][move.col] = 0
-            move.delete()
+        # 检查是否已经有悔棋请求
+        if room.undo_requested_by:
+            if room.undo_requested_by == player:
+                return JsonResponse({'error': '你已经发送过悔棋请求，请等待对方回应'}, status=400)
+            else:
+                # 对方发送了悔棋请求，当前玩家是回应方
+                # 执行悔棋 - 根据情况撤销一步或两步
+                board = room.get_board()
 
-        room.set_board(board)
-        room.current_turn = player  # 悔棋后轮到请求的玩家
+                # 检查最后两步棋是否由不同玩家下出
+                moves_to_undo = 1  # 默认撤销一步
+                if len(last_moves) >= 2 and last_moves[0].player != last_moves[1].player:
+                    # 如果最后两步是不同玩家下的，说明对方已经回应了，需要撤销两步
+                    moves_to_undo = 2
+
+                # 撤销指定步数的棋子
+                for i in range(moves_to_undo):
+                    move = last_moves[i]
+                    board[move.row][move.col] = 0
+                    move.delete()
+
+                room.set_board(board)
+                # 悔棋后回到请求悔棋的一方
+                undo_requester = room.undo_requested_by  # 先保存请求悔棋的玩家
+                room.undo_requested_by = None  # 清除悔棋请求
+                room.current_turn = undo_requester  # 设置为请求悔棋的玩家
+                room.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'board': board,
+                    'current_turn': player.id,
+                    'message': '悔棋成功'
+                })
+
+        # 发送悔棋请求
+        room.undo_requested_by = player
         room.save()
 
         return JsonResponse({
             'success': True,
-            'board': board,
-            'current_turn': player.id
+            'message': f'已向{opponent.user.username}发送悔棋请求，等待对方回应'
         })
 
     except Exception as e:
@@ -417,27 +448,46 @@ def request_draw(request, room_code):
         if room.status != 'playing':
             return JsonResponse({'error': '游戏未进行中'}, status=400)
 
-        # 这里可以实现和棋请求逻辑（需要对手同意）
-        # 简化版：直接设置为和棋
-        room.status = 'finished'
-        room.is_draw = True
+        # 确定对手
+        opponent = room.opponent if room.opponent != player else room.creator
+
+        # 检查是否已经有和棋请求
+        if room.draw_requested_by:
+            if room.draw_requested_by == player:
+                return JsonResponse({'error': '你已经发送过和棋请求，请等待对方回应'}, status=400)
+            else:
+                # 对方发送了和棋请求，当前玩家是回应方
+                # 同意和棋
+                room.status = 'finished'
+                room.is_draw = True
+                room.draw_requested_by = None  # 清除和棋请求
+                room.save()
+
+                # 更新游戏次数
+                room.creator.games_played += 1
+                room.creator.save()
+                if room.opponent:
+                    room.opponent.games_played += 1
+                    room.opponent.save()
+
+                # 更新好友统计
+                if room.opponent:
+                    update_friend_stats(room.creator, room.opponent, None, True)
+
+                return JsonResponse({
+                    'success': True,
+                    'status': room.status,
+                    'is_draw': True,
+                    'message': '双方同意和棋，游戏结束'
+                })
+
+        # 发送和棋请求
+        room.draw_requested_by = player
         room.save()
-
-        # 更新游戏次数
-        room.creator.games_played += 1
-        room.creator.save()
-        if room.opponent:
-            room.opponent.games_played += 1
-            room.opponent.save()
-
-        # 更新好友统计
-        if room.opponent:
-            update_friend_stats(room.creator, room.opponent, None, True)
 
         return JsonResponse({
             'success': True,
-            'status': room.status,
-            'is_draw': True
+            'message': f'已向{opponent.user.username}发送和棋请求，等待对方回应'
         })
 
     except Exception as e:
@@ -481,6 +531,8 @@ def get_room_state(request, room_code):
                 'winner': room.winner.id if room.winner else None,
                 'is_draw': room.is_draw,
                 'board': room.get_board(),
+                'undo_requested_by': room.undo_requested_by.id if room.undo_requested_by else None,
+                'draw_requested_by': room.draw_requested_by.id if room.draw_requested_by else None,
             },
             'player': {
                 'id': player.id,
