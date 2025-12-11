@@ -83,7 +83,7 @@
             </div>
 
             <div class="room-list card">
-                <h3 class="section-title"><i class="fas fa-users"></i> 可加入的房间</h3>
+                <h3 class="section-title"><i class="fas fa-users"></i> 加入房间</h3>
                 {% for room in available_rooms %}
                 <div class="room-item">
                     <div class="room-header">
@@ -139,7 +139,7 @@
             </div>
 
             <div class="friend-list card">
-                <h3 class="section-title"><i class="fas fa-user-friends"></i> 好友对战记录</h3>
+                <h3 class="section-title"><i class="fas fa-user-friends"></i> 对战记录</h3>
                 {% for friend in friends %}
                 <div class="friend-item" onclick="window.location.href='{% url 'player_profile' friend.player.id %}'">
                     <div class="friend-avatar">

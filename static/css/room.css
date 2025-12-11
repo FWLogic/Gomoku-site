@@ -86,22 +86,32 @@
 }
 
 .board {
-    display: grid;
-    grid-template-columns: repeat(15, 1fr);
-    grid-template-rows: repeat(15, 1fr);
-    gap: 0;
-    /* Use a responsive layout but ensure it never overflows its container */
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto; /* center and rely on container padding for breathing room */
-    box-sizing: border-box; /* include border in width calculations */
-    aspect-ratio: 1 / 1; /* keep square */
-    background: #e6b680;
-    border: 4px solid #8b4513;
     position: relative;
+    width: 100%;
+    max-width: 740px; /* 扩大棋盘区域 */
+    margin: 0 auto;
+    box-sizing: border-box;
+    aspect-ratio: 1 / 1;
+    background: #e6b680;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    flex: 0 0 auto; /* don't let flex container shrink the board */
-    overflow: hidden;
+    flex: 0 0 auto;
+}
+
+.board-inner {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    background-image: 
+        linear-gradient(to right, #000 1px, transparent 1px),
+        linear-gradient(to bottom, #000 1px, transparent 1px);
+    background-size: calc((100% - 1px) / 14) calc((100% - 1px) / 14); /* 调整网格尺寸确保边缘线完整显示 */
+    background-position: 0 0;
+    /* 添加外部边框确保边缘线可见 */
+    border: 1px solid #000;
+    /* 添加轻微的内阴影增强立体感 */
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 /* board bottom: move history under the board */
@@ -113,15 +123,15 @@
 }
 
 .cell {
-    position: relative;
-    border: 1px solid #d4a76a;
+    /* 相对于网格容器定位 */
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
     cursor: pointer;
-    transition: background 0.2s;
-    overflow: hidden; /* prevent piece visuals from overflowing the cell */
-}
-
-.cell:hover {
-    background: rgba(255, 255, 255, 0.1);
+    z-index: 2;
+    /* 创建层叠上下文 */
+    isolation: isolate;
 }
 
 .cell::before {
@@ -130,23 +140,22 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    /* make piece size relative to cell: use percentage so it scales with cell size */
-    width: 70%;
-    height: 70%;
-    max-width: 36px; /* cap max size for large screens */
+    width: 80%;
+    height: 80%;
+    max-width: 36px;
     max-height: 36px;
-    min-width: 10px; /* ensure visibility on very small cells */
-    min-height: 10px;
+    min-width: 12px;
+    min-height: 12px;
     background: transparent;
     border-radius: 50%;
     transition: all 0.3s ease;
+    z-index: 1;
 }
 
 /* If JS computes --cell-size and sets it on the board, use that to size pieces exactly */
 .board .cell::before {
-    /* override percent sizing when --cell-size is available; var fallback keeps percent before JS */
-    width: calc(var(--cell-size) * var(--piece-ratio, 0.7));
-    height: calc(var(--cell-size) * var(--piece-ratio, 0.7));
+    width: calc(var(--cell-size) * var(--piece-ratio, 0.8));
+    height: calc(var(--cell-size) * var(--piece-ratio, 0.8));
     max-width: calc(min(var(--cell-size), 36px));
     max-height: calc(min(var(--cell-size), 36px));
 }
@@ -154,11 +163,13 @@
 .cell.black::before {
     background: radial-gradient(circle at 30% 30%, #666, #000);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    z-index: 3;
 }
 
 .cell.white::before {
     background: radial-gradient(circle at 30% 30%, #fff, #ccc);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+    z-index: 3;
 }
 
 /* 新落下的棋子动画效果 */
@@ -167,8 +178,25 @@
     animation: pieceAppear 0.4s ease-out;
 }
 
-.cell.last-move::after {
-    content: '';
+.star-point {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: #000;
+    border-radius: 50%;
+    z-index: 1;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.star-point.center-star {
+    width: 10px;
+    height: 10px;
+}
+
+.last-move-dot {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -180,6 +208,8 @@
     max-height: 12px;
     background: red;
     border-radius: 50%;
+    z-index: 10; /* 确保红点显示在棋子上方 */
+    pointer-events: none; /* 确保红点不影响点击事件 */
 }
 
 

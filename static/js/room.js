@@ -55,9 +55,9 @@ class GomokuGame {
 
     initBoard() {
         const boardElement = document.getElementById('chessboard');
-        boardElement.innerHTML = '';
-        boardElement.style.gridTemplateColumns = `repeat(${this.boardSize}, 1fr)`;
-
+        boardElement.innerHTML = '<div class="board-inner"></div>';
+        const boardInner = boardElement.querySelector('.board-inner');
+        
         // 初始化棋盘数据数组
         this.board = [];
         for (let row = 0; row < this.boardSize; row++) {
@@ -67,22 +67,50 @@ class GomokuGame {
             }
         }
 
-        // 创建棋盘网格
+        // 定义五子棋星位点坐标（15路棋盘）- 天元和四颗小星
+        const starPoints = [
+            [7, 7],   // 天元（中心点）
+            [3, 3], [3, 11],  // 左上和右上小星
+            [11, 3], [11, 11] // 左下和右下小星
+        ];
+
+        // 创建星位点标记
+        starPoints.forEach(([row, col]) => {
+            const starPoint = document.createElement('div');
+            starPoint.className = row === 7 && col === 7 ? 'star-point center-star' : 'star-point';
+            starPoint.dataset.row = row;
+            starPoint.dataset.col = col;
+            
+            // 计算星位点位置（相对于内部网格区域）
+            const left = (col * 100) / (this.boardSize - 1);
+            const top = (row * 100) / (this.boardSize - 1);
+            starPoint.style.left = `${left}%`;
+            starPoint.style.top = `${top}%`;
+
+            boardInner.appendChild(starPoint);
+        });
+
+        // 创建棋盘交叉点
         for (let row = 0; row < this.boardSize; row++) {
             for (let col = 0; col < this.boardSize; col++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
                 cell.dataset.row = row;
                 cell.dataset.col = col;
+                
+                // 计算交叉点位置（相对于内部网格区域）
+                const left = (col * 100) / (this.boardSize - 1);
+                const top = (row * 100) / (this.boardSize - 1);
+                cell.style.left = `${left}%`;
+                cell.style.top = `${top}%`;
 
                 cell.addEventListener('click', () => this.handleCellClick(row, col));
-                boardElement.appendChild(cell);
+                boardInner.appendChild(cell);
             }
         }
 
-        // 确保格子为正方形：计算基于棋盘可见宽度的高度，并应用到每个 cell（作为兼容性 fallback）
+        // 计算单元格大小用于棋子定位
         this.resizeCells();
-        // 在窗口尺寸变化时重新计算（节流可在需要时加入）
         if (!this._resizeListenerAdded) {
             window.addEventListener('resize', () => this.resizeCells());
             this._resizeListenerAdded = true;
@@ -96,19 +124,12 @@ class GomokuGame {
             if (!boardElement) return;
             // 使用实际渲染宽度来计算单格尺寸
             const rect = boardElement.getBoundingClientRect();
-            const availableWidth = rect.width;
-            const cellSize = Math.floor(availableWidth / this.boardSize);
+            const availableWidth = rect.width - 40; // 减去左右padding (20px * 2)
+            const cellSize = Math.floor(availableWidth / (this.boardSize - 1));
             if (!cellSize || cellSize <= 0) return;
             // Expose exact cell pixel size as a CSS variable for precise piece sizing.
             // This allows CSS to compute piece dimensions: --cell-size (e.g. '32px').
             boardElement.style.setProperty('--cell-size', `${cellSize}px`);
-
-            // Keep per-cell inline height as a fallback for older browsers/layout edge cases.
-            const cells = boardElement.querySelectorAll('.cell');
-            cells.forEach(c => {
-                c.style.height = `${cellSize}px`;
-                c.style.lineHeight = `${cellSize}px`;
-            });
         } catch (e) {
             // 忽略计算错误
             // console.error('resizeCells error', e);
@@ -444,6 +465,12 @@ class GomokuGame {
 
             cell.classList.remove('black', 'white', 'last-move', 'piece-new');
 
+            // 移除之前可能添加的红点元素
+            const existingDot = cell.querySelector('.last-move-dot');
+            if (existingDot) {
+                existingDot.remove();
+            }
+
             if (value === 1) { // 黑棋
                 cell.classList.add('black');
                 // 如果之前没有棋子，现在有了，说明是新落子，添加动画
@@ -462,9 +489,14 @@ class GomokuGame {
                 }
             }
 
-            // 在添加棋子的同时，如果是最新落子位置，立即添加红点标记
+            // 在添加棋子的同时，如果是最新落子位置，添加红点标记
             if (this.lastMove && row === this.lastMove.row && col === this.lastMove.col) {
                 cell.classList.add('last-move');
+                // 添加红点元素以确保它显示在棋子上方
+                const dot = document.createElement('div');
+                dot.className = 'last-move-dot';
+                // 确保红点添加到cell的末尾，这样它会在最上层
+                cell.appendChild(dot);
             }
         });
     }
