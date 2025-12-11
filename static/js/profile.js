@@ -19,9 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 点击编辑按钮的处理逻辑
         editButton.addEventListener('click', function() {
-            // 这里可以添加编辑资料的功能
-            // 例如：显示一个模态框让用户编辑信息
-            alert('编辑资料功能尚未实现');
+            // 打开编辑资料页面
+            window.location.href = '/profile/edit/';
         });
     }
 

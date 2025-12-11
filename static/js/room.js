@@ -33,13 +33,16 @@ class GomokuGame {
         // 初始化已存在的移动历史到已知集合（如果模板里已经渲染了一些）
         this.initKnownMoves();
 
-        // 如果页面是从资料页 recent-games 打开的（回顾模式），自动显示第一步
+        // 标记是否需要在首次轮询后自动跳转到历史第一步（仅当游戏已结束时）
+        this.shouldAutoJumpToFirstMove = false;
+        // 标记是否是回顾模式（从资料页打开已结束的游戏，不应显示结束弹窗）
+        this.isReviewMode = false;
         try {
             if (this.isOpenedFromProfile && this.isOpenedFromProfile()) {
+                this.isReviewMode = true;  // 从资料页打开即为回顾模式
                 if (this.moveList && this.moveList.length > 0) {
-                    // 直接跳到第一步（index 0）并保持历史查看模式
-                    this.jumpToMove(0);
-                    try { this.updateHistoryNavButtons(); } catch (e) { /* ignore */ }
+                    // 延迟到首次轮询后，根据游戏状态决定是否跳转
+                    this.shouldAutoJumpToFirstMove = true;
                 }
             }
         } catch (e) {
@@ -350,9 +353,8 @@ class GomokuGame {
                 this.lastMove = null;
             }
 
-            // 更新棋盘显示
+            // 更新棋盘显示（红点标记已在 updateBoard 中处理）
             this.updateBoard(this.board);
-            this.highlightLastMove();
 
             // 高亮历史条目
             document.querySelectorAll('#move-history .move-item').forEach(el => el.classList.remove('history-active'));
@@ -392,7 +394,6 @@ class GomokuGame {
                     if (last) this.lastMove = { row: last.row, col: last.col };
                 }
                 this.updateBoard(this.board);
-                this.highlightLastMove();
 
                 // 高亮移动历史列表的最后一项（如果存在）以对应当前显示的最新步
                 try {
@@ -439,17 +440,30 @@ class GomokuGame {
             const row = parseInt(cell.dataset.row);
             const col = parseInt(cell.dataset.col);
             const value = boardData[row][col];
+            const hadPiece = cell.classList.contains('black') || cell.classList.contains('white');
 
-            cell.classList.remove('black', 'white', 'last-move');
+            cell.classList.remove('black', 'white', 'last-move', 'piece-new');
 
             if (value === 1) { // 黑棋
                 cell.classList.add('black');
+                // 如果之前没有棋子，现在有了，说明是新落子，添加动画
+                if (!hadPiece) {
+                    cell.classList.add('piece-new');
+                    // 动画结束后移除 piece-new class
+                    setTimeout(() => cell.classList.remove('piece-new'), 400);
+                }
             } else if (value === 2) { // 白棋
                 cell.classList.add('white');
+                // 如果之前没有棋子，现在有了，说明是新落子，添加动画
+                if (!hadPiece) {
+                    cell.classList.add('piece-new');
+                    // 动画结束后移除 piece-new class
+                    setTimeout(() => cell.classList.remove('piece-new'), 400);
+                }
             }
 
-            // 标记最后一步
-            if (this.lastMove && this.lastMove.row === row && this.lastMove.col === col) {
+            // 在添加棋子的同时，如果是最新落子位置，立即添加红点标记
+            if (this.lastMove && row === this.lastMove.row && col === this.lastMove.col) {
                 cell.classList.add('last-move');
             }
         });
@@ -469,6 +483,11 @@ class GomokuGame {
             const data = await response.json();
 
             if (data.success) {
+                // 先更新 lastMove，确保红点与棋子同步显示
+                if (data.last_move) {
+                    this.lastMove = data.last_move;
+                    this.liveLastMove = data.last_move;
+                }
                 this.updateBoard(data.board);
                 this.updateGameState(data);
             } else {
@@ -524,7 +543,14 @@ class GomokuGame {
 
             if (data.success) {
                 if (data.board) {
-                    // 悔棋成功，更新棋盘
+                    // 悔棋成功，先更新 lastMove，再更新棋盘
+                    if (data.last_move) {
+                        this.lastMove = data.last_move;
+                        this.liveLastMove = data.last_move;
+                    } else {
+                        this.lastMove = null;
+                        this.liveLastMove = null;
+                    }
                     this.updateBoard(data.board);
                     this.currentTurn = data.current_turn;
                 }
@@ -642,9 +668,33 @@ class GomokuGame {
                 console.log(`再来一局请求状态: ${data.room.rematch_requested_by === this.playerId ? '自己请求' : '对手请求'}`);
             }
 
-            // 始终更新 liveBoard，供 showLiveBoard 使用，但不要在历史查看时覆盖用户视图
+            // 始终更新 liveBoard，供 showLiveBoard 使用
             if (data.room.board) {
                 this.liveBoard = data.room.board;
+
+                // 检测是否有新的落子（对方落子）
+                const hasNewMove = data.last_move && (!this.liveLastMove ||
+                    data.last_move.row !== this.liveLastMove.row ||
+                    data.last_move.col !== this.liveLastMove.col);
+
+                // 如果有新落子且当前在历史查看模式，自动切换到实况
+                if (hasNewMove && this.isViewingHistory) {
+                    this.isViewingHistory = false;
+                    this.viewingIndex = null;
+                    // 清除历史高亮
+                    document.querySelectorAll('#move-history .move-item').forEach(el => el.classList.remove('history-active'));
+                }
+
+                // 更新最后一步（在更新棋盘之前设置，确保红点同步显示）
+                if (data.last_move) {
+                    this.liveLastMove = data.last_move;
+
+                    if (!this.isViewingHistory) {
+                        this.lastMove = data.last_move;
+                    }
+                }
+
+                // 更新棋盘显示
                 if (!this.isViewingHistory) {
                     this.updateBoard(data.room.board);
                 }
@@ -674,16 +724,8 @@ class GomokuGame {
                 });
             }
 
-            // 更新最后一步（始终保存为 liveLastMove），但在历史查看模式下不要替换当前视图的 lastMove
+            // 将最后一步追加到移动历史（实时更新）——即使在历史查看，也更新列表但不改变视图
             if (data.last_move) {
-                this.liveLastMove = data.last_move;
-
-                if (!this.isViewingHistory) {
-                    this.lastMove = data.last_move;
-                    this.highlightLastMove();
-                }
-
-                // 将最后一步追加到移动历史（实时更新）——即使在历史查看，也更新列表但不改变视图
                 this.addMoveToHistory(data.last_move);
 
                 // 如果当前不是历史查看模式，确保移动历史中对应的最新条目高亮
@@ -708,7 +750,17 @@ class GomokuGame {
             if (data.move_history && Array.isArray(data.move_history)) {
                 data.move_history.forEach(m => this.addMoveToHistory(m));
             }
-            
+
+            // 首次轮询后，如果需要自动跳转到历史第一步（仅当游戏已结束时）
+            if (this.shouldAutoJumpToFirstMove) {
+                this.shouldAutoJumpToFirstMove = false; // 只执行一次
+                // 只有在游戏已结束时才自动跳转到历史第一步
+                if (data.room.status === 'finished' && this.moveList && this.moveList.length > 0) {
+                    this.jumpToMove(0);
+                    try { this.updateHistoryNavButtons(); } catch (e) { /* ignore */ }
+                }
+            }
+
             // 处理通知
             if (data.room.notification_message) {
                 this.showMessage(data.room.notification_message, 'info');
@@ -1064,20 +1116,21 @@ class GomokuGame {
             const modal = document.getElementById('game-over-modal');
             const isModalAlreadyShown = modal && modal.classList.contains('show');
 
-            if (!isModalAlreadyShown) {
+            // 只在非回顾模式下显示游戏结束弹窗
+            if (!isModalAlreadyShown && !this.isReviewMode) {
                 if (roomData.winner === this.playerId) {
                     statusElement.textContent = '你赢了！';
                     statusElement.className = 'status-winner';
                     this.showMessage('恭喜获胜！', 'success');
-                    this.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
+                    this.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！', roomData);
                 } else if (roomData.is_draw) {
                     statusElement.textContent = '和棋';
                     statusElement.className = 'status-draw';
-                    this.showGameOverModal('和棋', '这局游戏以平局结束！');
+                    this.showGameOverModal('和棋', '这局游戏以平局结束！', roomData);
                 } else {
                     statusElement.textContent = '你输了';
                     statusElement.className = 'status-lose';
-                    this.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！');
+                    this.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！', roomData);
                 }
             }
 
@@ -1107,6 +1160,22 @@ class GomokuGame {
         document.getElementById('player-color').textContent = playerData.color === 'black' ? '黑棋' : '白棋';
         document.getElementById('player-color').className = `player-color color-${playerData.color}`;
 
+        // 更新当前玩家头像（如果后端返回 avatar_url）
+        try {
+            const playerAvatarImg = document.getElementById('player-avatar-img');
+            const playerAvatarContainer = document.getElementById('player-avatar');
+            if (playerData.avatar_url) {
+                if (playerAvatarImg) {
+                    if (playerAvatarImg.src !== playerData.avatar_url) playerAvatarImg.src = playerData.avatar_url;
+                } else if (playerAvatarContainer) {
+                    playerAvatarContainer.innerHTML = `<img src="${playerData.avatar_url}" alt="avatar" id="player-avatar-img" />`;
+                }
+            } else if (playerAvatarContainer) {
+                // fallback to initial
+                playerAvatarContainer.innerHTML = `<span class="avatar-initial">${(playerData.username||'').charAt(0).toUpperCase()}</span>`;
+            }
+        } catch (e) { console.warn('update player avatar failed', e); }
+
         // 更新对手信息
         const opponentElement = document.getElementById('opponent-info');
         if (opponentData && opponentData.username) {
@@ -1118,36 +1187,46 @@ class GomokuGame {
                 statsHtml = existingStatsElement.outerHTML;
             }
             
+            // update opponent avatar and info while preserving statsHtml
+            let avatarHtml = '';
+            if (opponentData.avatar_url) {
+                avatarHtml = `<a class="avatar-link" href="/profile/${opponentData.id}/"><div class="avatar-large"><img src="${opponentData.avatar_url}" id="opponent-avatar-img"/></div></a>`;
+            } else {
+                avatarHtml = `<div class="avatar-large"><span class="avatar-initial">${(opponentData.username||'').charAt(0).toUpperCase()}</span></div>`;
+            }
             opponentElement.innerHTML = `
-                <div class="player-name">${opponentData.username}</div>
-                <div class="player-color color-${opponentData.color}">
-                    ${opponentData.color === 'black' ? '黑棋' : '白棋'}
+                <div class="avatar-stack-centered">
+                    ${avatarHtml}
+                    <div class="player-details">
+                        <div class="player-name">${opponentData.username}</div>
+                        <div class="player-color color-${opponentData.color}">${opponentData.color === 'black' ? '黑棋' : '白棋'}</div>
+                    </div>
                 </div>
                 ${statsHtml}
             `;
-        } else {
-            // 只有在对手不存在时才更新为等待状态
-            if (!opponentElement.querySelector('.player-name') || 
-                opponentElement.querySelector('.player-name').textContent === '等待对手...') {
-                opponentElement.innerHTML = `
-                    <div class="player-name">等待对手...</div>
-                    <div class="player-color color-waiting">未加入</div>
-                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
-                        <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
-                            分享房间链接给朋友:
-                        </p>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" id="room-link" value="${window.location.href}"
-                                   readonly style="flex: 1; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
-                            <button class="btn btn-secondary" onclick="copyRoomLink()">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-    }
+         } else {
+             // 只有在对手不存在时才更新为等待状态
+             if (!opponentElement.querySelector('.player-name') ||
+                 opponentElement.querySelector('.player-name').textContent === '等待对手...') {
+                 opponentElement.innerHTML = `
+                     <div class="player-name">等待对手...</div>
+                     <div class="player-color color-waiting">未加入</div>
+                     <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                         <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                             分享房间链接给朋友:
+                         </p>
+                         <div style="display: flex; gap: 10px;">
+                             <input type="text" id="room-link" value="${window.location.href}"
+                                    readonly style="flex: 1; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                             <button class="btn btn-secondary" onclick="copyRoomLink()">
+                                 <i class="fas fa-copy"></i>
+                             </button>
+                         </div>
+                     </div>
+                 `;
+             }
+         }
+     }
 
     addChatMessage(chat, isOwn) {
         const chatMessages = document.getElementById('chat-messages');
@@ -1272,6 +1351,23 @@ class GomokuGame {
                 window.location.href = '/lobby/';
             });
         }
+
+        // 键盘事件监听器 - 左右箭头键控制历史导航
+        document.addEventListener('keydown', (e) => {
+            // 只有在游戏已结束并且有移动历史时才响应键盘事件
+            if (this.gameStatus === 'finished' && this.moveList && this.moveList.length > 0) {
+                // 左箭头键 - 上一步
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.prevHistory();
+                }
+                // 右箭头键 - 下一步
+                else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    this.nextHistory();
+                }
+            }
+        });
     }
 
     // 历史：上一步
@@ -1357,26 +1453,62 @@ class GomokuGame {
         const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
         // 每2分钟更新一次会话活动时间
-        setInterval(() => {
-            fetch('/api/update-session/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // 会话活动时间已更新
-                } else {
-                    console.error('更新会话活动时间失败:', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('更新会话活动时间出错:', error);
-            });
+        this.sessionUpdateInterval = setInterval(() => {
+            // 只在页面可见时更新session
+            if (!document.hidden) {
+                fetch('/api/update-session/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 会话活动时间已更新
+                    } else {
+                        console.error('更新会话活动时间失败:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('更新会话活动时间出错:', error);
+                });
+            }
         }, 120000); // 120000毫秒 = 2分钟
+
+        // 监听页面可见性变化
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // 页面隐藏时，停止轮询和session更新
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                    this.pollingInterval = null;
+                }
+            } else {
+                // 页面重新可见时，恢复轮询
+                if (!this.pollingInterval) {
+                    this.startPolling();
+                }
+                // 立即更新一次session
+                fetch('/api/update-session/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    }
+                }).catch(error => {
+                    console.error('更新会话活动时间出错:', error);
+                });
+            }
+        });
+
+        // 监听页面关闭/刷新事件，清理session
+        window.addEventListener('beforeunload', () => {
+            // 使用 sendBeacon 发送异步请求，即使页面关闭也能发送
+            const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+            navigator.sendBeacon('/api/clear-session/', blob);
+        });
     }
 
     // 检测页面是否从用户资料页打开（用于自动跳转历史步）
@@ -1399,6 +1531,165 @@ class GomokuGame {
             // ignore
         }
         return false;
+    }
+
+    // 启动轮询
+    startPolling() {
+        // 每0.5秒轮询一次房间状态
+        this.pollingInterval = setInterval(() => {
+            this.updateRoomState();
+        }, 500);
+    }
+
+    // 停止轮询
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+
+    // 获取CSRF令牌
+    getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    }
+
+    // 显示消息提示
+    showMessage(message, type = 'info') {
+        // 创建消息元素
+        const messageEl = document.createElement('div');
+        messageEl.className = `message-toast message-${type}`;
+        messageEl.textContent = message;
+
+        // 添加样式
+        messageEl.style.position = 'fixed';
+        messageEl.style.top = '20px';
+        messageEl.style.right = '20px';
+        messageEl.style.padding = '15px 20px';
+        messageEl.style.borderRadius = '8px';
+        messageEl.style.zIndex = '10000';
+        messageEl.style.minWidth = '200px';
+        messageEl.style.maxWidth = '400px';
+        messageEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        messageEl.style.animation = 'slideIn 0.3s ease-out';
+
+        // 根据类型设置颜色
+        if (type === 'success') {
+            messageEl.style.backgroundColor = '#28a745';
+            messageEl.style.color = 'white';
+        } else if (type === 'error') {
+            messageEl.style.backgroundColor = '#dc3545';
+            messageEl.style.color = 'white';
+        } else if (type === 'info') {
+            messageEl.style.backgroundColor = '#17a2b8';
+            messageEl.style.color = 'white';
+        } else {
+            messageEl.style.backgroundColor = '#ffc107';
+            messageEl.style.color = '#333';
+        }
+
+        document.body.appendChild(messageEl);
+
+        // 3秒后自动移除
+        setTimeout(() => {
+            messageEl.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    // HTML转义函数
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 显示游戏结束弹窗
+    showGameOverModal(title, message, roomData = null) {
+        const modal = document.getElementById('game-over-modal');
+        const titleEl = document.getElementById('game-result-title');
+        const messageEl = document.getElementById('game-result-message');
+        const statsEl = document.getElementById('game-stats');
+
+        if (modal && titleEl && messageEl) {
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            // 显示游戏统计数据
+            if (statsEl) {
+                // 计算总步数
+                const totalMoves = this.moveList ? this.moveList.length : 0;
+
+                // 计算游戏用时
+                let gameDuration = '未知';
+                if (roomData && roomData.created_at) {
+                    try {
+                        const startTime = new Date(roomData.created_at);
+                        // 如果有finished_at，使用它；否则使用当前时间
+                        const endTime = roomData.finished_at ? new Date(roomData.finished_at) : new Date();
+                        const durationMs = endTime - startTime;
+                        const minutes = Math.floor(durationMs / 60000);
+                        const seconds = Math.floor((durationMs % 60000) / 1000);
+                        gameDuration = `${minutes}分${seconds}秒`;
+                    } catch (e) {
+                        console.error('计算游戏时长失败:', e);
+                    }
+                }
+
+                statsEl.innerHTML = `
+                    <div class="game-stats-container">
+                        <div class="stat-item">
+                            <i class="fas fa-chess-board"></i>
+                            <span class="stat-label">总步数</span>
+                            <span class="stat-value">${totalMoves}</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-clock"></i>
+                            <span class="stat-label">用时</span>
+                            <span class="stat-value">${gameDuration}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            modal.classList.add('show');
+
+            // 绑定再来一局按钮
+            const playAgainBtn = document.getElementById('play-again-btn');
+            if (playAgainBtn) {
+                playAgainBtn.onclick = () => {
+                    this.requestRematch();
+                };
+            }
+        }
+    }
+
+    // 请求再来一局
+    async requestRematch() {
+        try {
+            const response = await fetch(`/room/${this.roomCode}/rematch/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showMessage(data.message || '再来一局请求已发送', 'success');
+            } else {
+                this.showMessage(data.error || '请求失败', 'error');
+            }
+        } catch (error) {
+            console.error('再来一局请求失败:', error);
+            this.showMessage('网络错误，请重试', 'error');
+        }
     }
 }
 

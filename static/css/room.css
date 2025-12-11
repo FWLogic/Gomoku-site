@@ -161,6 +161,12 @@
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
+/* 新落下的棋子动画效果 */
+.cell.black.piece-new::before,
+.cell.white.piece-new::before {
+    animation: pieceAppear 0.4s ease-out;
+}
+
 .cell.last-move::after {
     content: '';
     position: absolute;
@@ -456,28 +462,52 @@
 }
 
 #game-stats {
+    margin-top: 20px;
+}
+
+.game-stats-container {
     display: flex;
     justify-content: space-around;
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #f8f9fa;
-    border-radius: 10px;
+    gap: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
 }
 
-.stat-box {
+.stat-item {
+    flex: 1;
     text-align: center;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    transition: transform 0.2s ease;
 }
 
-.stat-box .stat-label {
+.stat-item:hover {
+    transform: translateY(-3px);
+}
+
+.stat-item i {
+    font-size: 28px;
+    color: #667eea;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.stat-item .stat-label {
+    display: block;
     font-size: 14px;
     color: #666;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    font-weight: 500;
 }
 
-.stat-box .stat-value {
-    font-size: 20px;
+.stat-item .stat-value {
+    display: block;
+    font-size: 24px;
     font-weight: 700;
-    color: #667eea;
+    color: #333;
 }
 
 .modal-footer {
@@ -513,6 +543,20 @@
     }
     to {
         transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pieceAppear {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
         opacity: 1;
     }
 }
@@ -594,4 +638,50 @@
     .game-container {
         gap: 10px;
     }
+}
+
+/* Avatar styles used on room page */
+.avatar-large {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #f5f6fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 10px;
+}
+.avatar-large img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-initial { font-size: 32px; }
+.avatar-link { display: inline-block; text-decoration: none; color: inherit; }
+
+/* Centered stacked avatar+name container */
+.avatar-stack { display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; margin-bottom:12px; }
+
+/* 新增：水平排列的头像、用户名和棋色 */
+.avatar-stack-centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.avatar-stack-centered .player-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* 修改为居中对齐 */
+}
+
+.avatar-stack-centered .player-name {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+
+.avatar-stack-centered .player-color {
+    margin-bottom: 0;
+    font-size: 14px;
 }

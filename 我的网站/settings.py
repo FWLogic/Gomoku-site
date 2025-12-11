@@ -127,3 +127,7 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+# 媒体文件（用于用户上传的头像）
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

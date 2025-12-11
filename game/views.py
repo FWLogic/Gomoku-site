@@ -235,6 +235,7 @@ def make_move(request, room_code):
         if winner:
             room.winner = player
             room.status = 'finished'
+            room.finished_at = timezone.now()
 
             # 更新统计数据
             player.total_wins += 1
@@ -252,6 +253,7 @@ def make_move(request, room_code):
         elif is_board_full(board, room.board_size):
             room.is_draw = True
             room.status = 'finished'
+            room.finished_at = timezone.now()
 
             # 更新游戏次数
             player.games_played += 1
@@ -571,6 +573,7 @@ def request_draw(request, room_code):
                 # 对方发送了和棋请求，当前玩家是回应方
                 # 同意和棋
                 room.status = 'finished'
+                room.finished_at = timezone.now()
                 room.is_draw = True
                 room.draw_requested_by = None  # 清除和棋请求
                 room.save()
@@ -670,18 +673,22 @@ def get_room_state(request, room_code):
                 'draw_requested_by': room.draw_requested_by.id if room.draw_requested_by else None,
                 'rematch_requested_by': room.rematch_requested_by.id if room.rematch_requested_by else None,
                 'notification_message': notification_message,
+                'created_at': room.created_at.isoformat(),
+                'finished_at': room.finished_at.isoformat() if room.finished_at else None,
             },
             'player': {
                 'id': player.id,
                 'username': player.user.username,
                 'color': 'black' if (room.creator == player and room.creator_is_black) or \
-                                    (room.opponent == player and not room.creator_is_black) else 'white'
+                                    (room.opponent == player and not room.creator_is_black) else 'white',
+                'avatar_url': player.avatar.url if player.avatar else None,
             },
             'opponent': {
                 'id': opponent.id if opponent else None,
                 'username': opponent.user.username if opponent else None,
                 'color': 'black' if (room.creator == opponent and room.creator_is_black) or \
-                                 (room.opponent == opponent and not room.creator_is_black) else 'white' if opponent else None
+                                 (room.opponent == opponent and not room.creator_is_black) else 'white' if opponent else None,
+                'avatar_url': opponent.avatar.url if opponent and opponent.avatar else None,
             },
             'chats': [
                 {
@@ -816,7 +823,8 @@ def get_online_players(request):
                 'id': player.id,
                 'username': player.user.username,
                 'win_rate': round(player.win_rate(), 1),
-                'in_game': in_game
+                'in_game': in_game,
+                'avatar_url': player.avatar.url if player.avatar else None,
             })
 
     return JsonResponse({
@@ -1112,6 +1120,27 @@ def update_session(request):
     return JsonResponse({
         'success': True,
         'message': '会话活动时间已更新'
+    })
+
+
+@csrf_exempt
+@require_POST
+def clear_session(request):
+    """清理会话记录（用户关闭页面时调用）"""
+    # 如果用户已登录，删除对应的session记录
+    if request.user.is_authenticated:
+        try:
+            player = Player.objects.get(user=request.user)
+            PlayerSession.objects.filter(
+                player=player,
+                session_key=request.session.session_key
+            ).delete()
+        except Player.DoesNotExist:
+            pass
+
+    return JsonResponse({
+        'success': True,
+        'message': '会话已清理'
     })
 
 

@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from account.views import login_view, logout_view, delete_account_confirm, delete_account
+from account.views import login_view, logout_view, delete_account_confirm, delete_account, edit_profile
 from game.views import *
 
 urlpatterns = [
@@ -51,9 +51,12 @@ urlpatterns = [
     path('api/invitation/<int:invitation_id>/accept/', accept_invitation, name='accept_invitation'),
     path('api/invitation/<int:invitation_id>/reject/', reject_invitation, name='reject_invitation'),
     path('api/update-session/', update_session, name='update_session'),
+    path('api/clear-session/', clear_session, name='clear_session'),
     path('api/player/<int:player_id>/recent-games/', get_player_recent_games, name='get_player_recent_games'),
+    path('profile/edit/', edit_profile, name='edit_profile'),
 ]
 
 # 开发环境下的静态文件服务
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

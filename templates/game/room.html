@@ -39,11 +39,24 @@
             <div class="player-info card">
                 <div id="opponent-info">
                     {% if opponent %}
-                    <div class="player-name">{{ opponent.user.username }}</div>
-                    <div class="player-color color-{% if player_color == 'black' %}white{% else %}black{% endif %}">
-                        {% if player_color == 'black' %}白棋{% else %}黑棋{% endif %}
+                    <div class="avatar-stack-centered">
+                        <a class="avatar-link" href="{% url 'player_profile' opponent.id %}?ref=room&room_code={{ room.room_code }}">
+                            <div class="avatar-large" id="opponent-avatar">
+                                {% if opponent.avatar %}
+                                    <img src="{{ opponent.avatar.url }}" alt="avatar" id="opponent-avatar-img" />
+                                {% else %}
+                                    <span class="avatar-initial">{{ opponent.user.username|first|upper }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        <div class="player-details">
+                            <div class="player-name">{{ opponent.user.username }}</div>
+                            <div class="player-color color-{% if player_color == 'black' %}white{% else %}black{% endif %}">
+                                {% if player_color == 'black' %}白棋{% else %}黑棋{% endif %}
+                            </div>
+                        </div>
                     </div>
-                    {% if friend_stats %}
+                     {% if friend_stats %}
                     <div class="stats-grid">
                         <div class="stat-item">
                             <div class="stat-label">总胜场</div>
@@ -171,11 +184,25 @@
             <div class="game-controls card">
                 <!-- 当前玩家信息 -->
                 <div class="player-info" style="margin-bottom: 25px;">
-                    <div class="player-name" id="player-name">{{ player.user.username }}</div>
-                    <div class="player-color color-{{ player_color }}" id="player-color">
-                        {% if player_color == 'black' %}黑棋{% else %}白棋{% endif %}
+                    <div class="avatar-stack-centered">
+                        <a class="avatar-link" href="{% url 'player_profile' player.id %}?ref=room&room_code={{ room.room_code }}">
+                            <div class="avatar-large" id="player-avatar">
+                                {% if player.avatar %}
+                                    <img src="{{ player.avatar.url }}" alt="avatar" id="player-avatar-img" />
+                                {% else %}
+                                    <span class="avatar-initial">{{ player.user.username|first|upper }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        <div class="player-details">
+                            <div class="player-name" id="player-name">{{ player.user.username }}</div>
+                            <div class="player-color color-{{ player_color }}" id="player-color">
+                                {% if player_color == 'black' %}黑棋{% else %}白棋{% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <div class="stats-grid">
+
+                     <div class="stats-grid">
                         <div class="stat-item">
                             <div class="stat-label">总胜场</div>
                             <div class="stat-value">{{ player.total_wins }}</div>
@@ -292,14 +319,40 @@
             cell.onclick = null;
         });
 
-        // 如果游戏已结束，显示游戏结束弹窗
-        {% if room.winner == player %}
-        window.game.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
-        {% elif room.is_draw %}
-        window.game.showGameOverModal('和棋', '这局游戏以平局结束！');
-        {% else %}
-        window.game.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！');
-        {% endif %}
+        // 如果游戏已结束，显示游戏结束弹窗（但不包括回顾模式）
+        // 检查是否从资料页打开（回顾模式）
+        var isReviewMode = false;
+        try {
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('ref') === 'profile') {
+                isReviewMode = true;
+            } else {
+                // 回退检查 body data 属性
+                var bodyRef = document.body.dataset.ref;
+                if (bodyRef === 'profile') {
+                    isReviewMode = true;
+                } else {
+                    // 进一步检查 document.referrer
+                    var ref = document.referrer || '';
+                    if (ref.indexOf('/profile') !== -1 || ref.indexOf('recent-games') !== -1 || ref.indexOf('recent') !== -1) {
+                        isReviewMode = true;
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        // 只有在非回顾模式下才显示游戏结束弹窗
+        if (!isReviewMode) {
+            {% if room.winner == player %}
+            window.game.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
+            {% elif room.is_draw %}
+            window.game.showGameOverModal('和棋', '这局游戏以平局结束！');
+            {% else %}
+            window.game.showGameOverModal('你输了', '很遗憾，这局游戏你输了，再接再厉！');
+            {% endif %}
+        }
     });
     {% endif %}
 </script>

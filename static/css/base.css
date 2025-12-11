@@ -298,6 +298,29 @@ body {
     margin-top: 25px;
 }
 
+/* 表单控件样式 */
+.form-group { margin-bottom: 12px; }
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e6e9ef;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: #333;
+}
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 4px 20px rgba(102,126,234,0.12);
+}
+
+/* 小屏幕下表单布局调整 */
+@media (max-width: 600px) {
+    .avatar-preview { width:72px; height:72px; }
+    .edit-card { padding: 18px; }
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .lobby-grid {

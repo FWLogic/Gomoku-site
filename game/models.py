@@ -7,6 +7,9 @@ class Player(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     total_wins = models.IntegerField(default=0)
     games_played = models.IntegerField(default=0)
+    # 新增头像和简介字段
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    bio = models.TextField(blank=True)
 
     def __str__(self):
         return self.user.username
@@ -48,6 +51,7 @@ class GomokuRoom(models.Model):
                                  related_name='joined_gomoku_rooms')
     status = models.CharField(max_length=10, choices=ROOM_STATUS, default='waiting')
     created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)  # 游戏结束时间
     board_size = models.IntegerField(default=15)  # 15x15 五子棋棋盘
     current_turn = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, related_name='current_turn_rooms')
     winner = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True, related_name='won_rooms')

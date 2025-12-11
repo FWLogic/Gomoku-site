@@ -7,20 +7,69 @@ document.addEventListener('DOMContentLoaded', function() {
     loadOnlinePlayers();
 
     // 定期刷新在线玩家列表（每30秒）
-    setInterval(loadOnlinePlayers, 30000);
-    
+    let onlinePlayersInterval = setInterval(loadOnlinePlayers, 30000);
+
     // 定期检查邀请通知（每10秒）
-    setInterval(checkInvitations, 10000);
-    
+    let invitationsInterval = setInterval(checkInvitations, 10000);
+
     // 初始加载邀请通知
     checkInvitations();
+
+    // 每2分钟更新一次会话活动时间
+    let sessionUpdateInterval = setInterval(() => {
+        if (!document.hidden) {
+            fetch('/api/update-session/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            }).catch(error => {
+                console.error('更新会话活动时间出错:', error);
+            });
+        }
+    }, 120000); // 120000毫秒 = 2分钟
 
     // 添加页面可见性变化事件监听，当页面重新可见时刷新在线玩家列表和邀请通知
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             loadOnlinePlayers();
             checkInvitations();
+            // 页面重新可见时，立即更新一次session
+            fetch('/api/update-session/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            }).catch(error => {
+                console.error('更新会话活动时间出错:', error);
+            });
+            // 恢复定时器
+            if (!onlinePlayersInterval) {
+                onlinePlayersInterval = setInterval(loadOnlinePlayers, 30000);
+            }
+            if (!invitationsInterval) {
+                invitationsInterval = setInterval(checkInvitations, 10000);
+            }
+        } else {
+            // 页面隐藏时，停止定时器
+            if (onlinePlayersInterval) {
+                clearInterval(onlinePlayersInterval);
+                onlinePlayersInterval = null;
+            }
+            if (invitationsInterval) {
+                clearInterval(invitationsInterval);
+                invitationsInterval = null;
+            }
         }
+    });
+
+    // 监听页面关闭/刷新事件，清理session
+    window.addEventListener('beforeunload', () => {
+        // 使用 sendBeacon 发送异步请求，即使页面关闭也能发送
+        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+        navigator.sendBeacon('/api/clear-session/', blob);
     });
 
     // 处理复制房间链接按钮
@@ -120,10 +169,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 渲染在线玩家列表
                 let playersHTML = '';
                 data.players.forEach(player => {
+                    const avatarHtml = player.avatar_url ? ` <img src="${player.avatar_url}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" /> ` : player.username.charAt(0).toUpperCase();
                     playersHTML += `
                         <div class="player-item" data-player-id="${player.id}">
                             <div class="player-avatar">
-                                ${player.username.charAt(0).toUpperCase()}
+                                ${avatarHtml}
                                 <div class="online-indicator"></div>
                             </div>
                             <div class="player-info">
