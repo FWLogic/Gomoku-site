@@ -1,3 +1,8 @@
+:root {
+    --card-padding: 25px; /* design system spacing for .card and similar containers */
+    --piece-ratio: 0.9; /* default ratio of piece diameter to cell size */
+}
+
 /* 全局样式 */
 * {
     margin: 0;
@@ -32,7 +37,7 @@ body {
     background: white;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    padding: 25px;
+    padding: var(--card-padding);
     margin-bottom: 20px;
 }
 

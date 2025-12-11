@@ -51,6 +51,7 @@ urlpatterns = [
     path('api/invitation/<int:invitation_id>/accept/', accept_invitation, name='accept_invitation'),
     path('api/invitation/<int:invitation_id>/reject/', reject_invitation, name='reject_invitation'),
     path('api/update-session/', update_session, name='update_session'),
+    path('api/player/<int:player_id>/recent-games/', get_player_recent_games, name='get_player_recent_games'),
 ]
 
 # 开发环境下的静态文件服务

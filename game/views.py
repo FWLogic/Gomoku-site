@@ -695,7 +695,8 @@ def get_room_state(request, room_code):
             'last_move': {
                 'row': move_history[0].row if move_history else None,
                 'col': move_history[0].col if move_history else None,
-                'player': move_history[0].player.user.username if move_history else None
+                'player': move_history[0].player.user.username if move_history else None,
+                'move_number': move_history[0].move_number if move_history else None
             } if move_history else None
         })
 
@@ -1156,3 +1157,62 @@ def reject_rematch(request, room_code):
         return JsonResponse({'error': '房间不存在'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_GET
+def get_player_recent_games(request, player_id):
+    """返回玩家的最近游戏记录（分页）"""
+    try:
+        profile_player = Player.objects.get(id=player_id)
+    except Player.DoesNotExist:
+        return JsonResponse({'success': False, 'error': '玩家不存在'}, status=404)
+
+    # 分页参数
+    try:
+        page = int(request.GET.get('page', 1))
+    except:
+        page = 1
+    try:
+        page_size = int(request.GET.get('page_size', 10))
+    except:
+        page_size = 10
+
+    if page < 1:
+        page = 1
+    if page_size < 1:
+        page_size = 10
+
+    offset = (page - 1) * page_size
+
+    games_qs = GomokuRoom.objects.filter(
+        Q(creator=profile_player) | Q(opponent=profile_player),
+        status='finished'
+    ).order_by('-created_at')
+
+    total = games_qs.count()
+    games = games_qs[offset:offset + page_size]
+
+    results = []
+    for game in games:
+        opponent = None
+        if game.creator == profile_player:
+            opponent = game.opponent
+        else:
+            opponent = game.creator
+
+        results.append({
+            'room_code': game.room_code,
+            'created_at': game.created_at.isoformat(),
+            'opponent_username': opponent.user.username if opponent else '未知',
+            'winner_id': game.winner.id if game.winner else None,
+            'is_draw': game.is_draw,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'page': page,
+        'page_size': page_size,
+        'total': total,
+        'games': results,
+    })

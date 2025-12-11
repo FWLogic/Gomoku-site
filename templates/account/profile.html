@@ -24,7 +24,7 @@
         </div>
 
         <div class="card">
-            <div class="profile-header">
+            <div class="profile-header" data-is-own="{{ is_own_profile|yesno:'true,false' }}" data-player-id="{{ profile_player.id }}">
                 <div class="avatar profile-avatar">
                     {{ profile_player.user.username|first|upper }}
                 </div>
@@ -98,7 +98,7 @@
 
             <div class="card">
                 <h3 class="section-title"><i class="fas fa-history"></i> 最近游戏</h3>
-                <div style="max-height: 400px; overflow-y: auto;">
+                <div id="recent-games-list" style="max-height: 400px; overflow-y: auto;">
                     {% for game in recent_games %}
                     <div class="room-item">
                         <div class="room-header">

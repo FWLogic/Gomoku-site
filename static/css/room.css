@@ -72,15 +72,17 @@
 /* 棋盘样式 */
 .board-container {
     position: relative;
-    padding: 15px;
+    padding: var(--card-padding, 20px); /* fallback to 20px when variable not defined */
     background: #f8f9fa;
     border-radius: 15px;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center; /* center the board horizontally */
     min-height: 400px;
     width: 100%;
     flex-direction: column; /* changed to column so board on top and history below */
+    box-sizing: border-box; /* ensure padding accounted for */
+    overflow: hidden; /* prevent children from spilling out */
 }
 
 .board {
@@ -88,16 +90,26 @@
     grid-template-columns: repeat(15, 1fr);
     grid-template-rows: repeat(15, 1fr);
     gap: 0;
+    /* Use a responsive layout but ensure it never overflows its container */
     width: 100%;
-    height: 100%;
-    max-width: 600px;
-    max-height: 600px;
-    min-width: 320px; /* allow smaller on narrow viewports */
-    min-height: 320px;
+    max-width: 700px;
+    margin: 0 auto; /* center and rely on container padding for breathing room */
+    box-sizing: border-box; /* include border in width calculations */
+    aspect-ratio: 1 / 1; /* keep square */
     background: #e6b680;
     border: 4px solid #8b4513;
     position: relative;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    flex: 0 0 auto; /* don't let flex container shrink the board */
+    overflow: hidden;
+}
+
+/* board bottom: move history under the board */
+.board-bottom {
+    width: 100%;
+    max-width: 700px; /* match board max-width so it aligns */
+    margin: 12px auto 0 auto; /* center and keep top spacing */
+    box-sizing: border-box;
 }
 
 .cell {
@@ -105,6 +117,7 @@
     border: 1px solid #d4a76a;
     cursor: pointer;
     transition: background 0.2s;
+    overflow: hidden; /* prevent piece visuals from overflowing the cell */
 }
 
 .cell:hover {
@@ -117,23 +130,33 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 0;
-    height: 0;
+    /* make piece size relative to cell: use percentage so it scales with cell size */
+    width: 70%;
+    height: 70%;
+    max-width: 36px; /* cap max size for large screens */
+    max-height: 36px;
+    min-width: 10px; /* ensure visibility on very small cells */
+    min-height: 10px;
     background: transparent;
     border-radius: 50%;
     transition: all 0.3s ease;
 }
 
+/* If JS computes --cell-size and sets it on the board, use that to size pieces exactly */
+.board .cell::before {
+    /* override percent sizing when --cell-size is available; var fallback keeps percent before JS */
+    width: calc(var(--cell-size) * var(--piece-ratio, 0.7));
+    height: calc(var(--cell-size) * var(--piece-ratio, 0.7));
+    max-width: calc(min(var(--cell-size), 36px));
+    max-height: calc(min(var(--cell-size), 36px));
+}
+
 .cell.black::before {
-    width: 36px;
-    height: 36px;
     background: radial-gradient(circle at 30% 30%, #666, #000);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
 .cell.white::before {
-    width: 36px;
-    height: 36px;
     background: radial-gradient(circle at 30% 30%, #fff, #ccc);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
@@ -144,18 +167,15 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
+    /* use relative sizing so the dot scales with the cell */
+    width: 24%;
+    height: 24%;
+    max-width: 12px;
+    max-height: 12px;
     background: red;
     border-radius: 50%;
 }
 
-/* board bottom: move history under the board */
-.board-bottom {
-    width: 100%;
-    max-width: 600px;
-    margin-top: 12px;
-}
 
 /* 游戏控制 */
 .game-controls {
@@ -278,6 +298,19 @@
     padding: 8px 12px;
     border-bottom: 1px solid #e9ecef;
     font-size: 14px;
+}
+
+/* 高亮正在查看的历史条目 */
+.move-item.history-active {
+    background: linear-gradient(90deg, rgba(102,126,234,0.08), rgba(102,126,234,0.03));
+    border-left: 4px solid #667eea;
+    box-shadow: 0 2px 8px rgba(102,126,234,0.06);
+}
+
+.move-item.history-active .move-number,
+.move-item.history-active .move-player {
+    font-weight: 700;
+    color: #333;
 }
 
 .move-number {
@@ -484,6 +517,25 @@
     }
 }
 
+/* 小工具：历史导航（上一步/下一步） */
+.history-nav {
+    display: inline-block;
+}
+.history-nav .btn {
+    margin-left: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
+/* 在较小屏幕时把历史导航按钮收纳一些间距 */
+@media (max-width: 768px) {
+    .history-nav .btn {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
     .game-container {
@@ -497,29 +549,28 @@
     }
 
     .board {
-        width: 90%;
-        height: 90%;
+        width: 100%;
         max-width: 500px;
-        max-height: 500px;
-        min-width: 320px;
-        min-height: 320px;
+        aspect-ratio: 1 / 1; /* keep square */
+        box-sizing: border-box;
         margin: 0 auto;
+        flex: 0 0 auto;
     }
 
     .board-bottom {
         margin: 10px auto 0 auto;
-        width: 90%;
+        width: 100%;
+        max-width: 500px;
     }
 }
 
 @media (max-width: 768px) {
     .board {
-        width: 90%;
-        height: 90%;
+        width: 100%;
         max-width: 400px;
-        max-height: 400px;
-        min-width: 280px;
-        min-height: 280px;
+        aspect-ratio: 1 / 1;
+        box-sizing: border-box;
+        margin: 0 auto;
     }
 
     .game-container {
@@ -529,12 +580,11 @@
 
 @media (max-width: 480px) {
     .board {
-        width: 90%;
-        height: 90%;
+        width: 100%;
         max-width: 320px;
-        max-height: 320px;
-        min-width: 240px;
-        min-height: 240px;
+        aspect-ratio: 1 / 1;
+        box-sizing: border-box;
+        margin: 0 auto;
     }
 
     .board-container {
