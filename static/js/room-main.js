@@ -47,6 +47,17 @@ class GomokuGame {
 
         // 标记是否需要在首次轮询后自动跳转到历史第一步（仅当游戏已结束时）
         this.history.shouldAutoJumpToFirstMove = false;
+        
+        // 初始化对手ID（如果游戏开始时就有对手）
+        // 注意：这需要在window对象中有opponentId变量
+        if (window.opponentId) {
+            if (!this.communication) {
+                console.error('Communication not initialized');
+            } else {
+                this.communication.lastOpponentId = window.opponentId;
+                console.log('初始化对手ID:', window.opponentId);
+            }
+        }
         // 标记是否是回顾模式（从资料页打开已结束的游戏，不应显示结束弹窗）
         this.history.isReviewMode = false;
         try {
@@ -63,6 +74,21 @@ class GomokuGame {
 
         this.startPolling();
         this.startSessionUpdater();
+        
+        // 检查是否应该处于回顾模式（页面刷新后保持回顾模式）
+        if (this.history.isOpenedFromProfile && this.history.isOpenedFromProfile()) {
+            this.history.isReviewMode = true;
+        } else {
+            // 检查 URL 参数是否表明是回顾模式
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('review') === 'true') {
+                    this.history.isReviewMode = true;
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
     }
 
     initBoard() {
@@ -205,6 +231,11 @@ class GomokuGame {
         const wasFinished = this.gameStatus === 'finished';
         const prevStatus = this.gameStatus;
         this.gameStatus = roomData.status;
+        
+        // 更新当前回合玩家
+        if (roomData.current_turn !== undefined) {
+            this.currentTurn = roomData.current_turn;
+        }
 
         // 检查游戏是否从结束状态变为进行中状态（游戏重新开始）
         if (wasFinished && roomData.status === 'playing') {
@@ -223,7 +254,26 @@ class GomokuGame {
                 if (moveContainer) {
                     moveContainer.innerHTML = '';
                 }
+                // 重置历史记录相关状态
+                this.history.moveList = [];
                 this.history.knownMoveKeys.clear();
+            } catch (e) {
+                // ignore
+            }
+            
+            // 清除棋盘上的红点标记
+            try {
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    cell.classList.remove('last-move');
+                    const existingDot = cell.querySelector('.last-move-dot');
+                    if (existingDot) {
+                        existingDot.remove();
+                    }
+                });
+                // 重置 lastMove 和 liveLastMove
+                this.lastMove = null;
+                this.liveLastMove = null;
             } catch (e) {
                 // ignore
             }
@@ -260,8 +310,23 @@ class GomokuGame {
             const modal = document.getElementById('game-over-modal');
             const isModalAlreadyShown = modal && modal.classList.contains('show');
 
+            // 检查是否处于回顾模式
+            let isReviewMode = this.history.isReviewMode;
+            if (!isReviewMode) {
+                // 检查 URL 参数是否表明是回顾模式
+                try {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('review') === 'true' || urlParams.get('ref') === 'profile') {
+                        isReviewMode = true;
+                        this.history.isReviewMode = true;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
             // 只在非回顾模式下显示游戏结束弹窗
-            if (!isModalAlreadyShown && !this.history.isReviewMode) {
+            if (!isModalAlreadyShown && !isReviewMode) {
                 if (roomData.winner === this.playerId) {
                     statusElement.textContent = '你赢了！';
                     statusElement.className = 'status-winner';
@@ -316,6 +381,12 @@ class GomokuGame {
 
     addChatMessage(chat, isOwn) {
         const chatMessages = document.getElementById('chat-messages');
+        // 检查消息是否已存在
+        const messageExists = chatMessages.querySelector(`.chat-message[data-message-id="${chat.id}"]`);
+        if (messageExists) {
+            return; // 如果消息已存在，则不重复添加
+        }
+
         const messageElement = document.createElement('div');
         messageElement.className = `chat-message ${isOwn ? 'own' : ''}`;
 
@@ -383,25 +454,28 @@ class GomokuGame {
             leaveBtnElem.addEventListener('click', (e) => {
                 // 防止锚点默认导航
                 if (e && e.preventDefault) e.preventDefault();
-                // 如果页面是从资料页打开（回顾模式），返回到来源页或资料页；否则回大厅
-                try {
-                    if (this.history.isOpenedFromProfile && this.history.isOpenedFromProfile()) {
-                        // 优先使用同源 referrer
-                        const ref = document.referrer || '';
-                        try {
-                            if (ref && ref.indexOf(window.location.origin) === 0) {
-                                window.location.href = ref;
-                                return;
-                            }
-                        } catch (e) { /* ignore */ }
-                        // fallback to profile root
-                        window.location.href = '/profile/';
-                        return;
+                
+                // 发送离开房间的请求
+                fetch(`/room/${this.roomCode}/leave/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCsrfToken(),
+                        'Content-Type': 'application/json'
                     }
-                } catch (e) {
-                    // ignore and fallback
-                }
-                window.location.href = '/lobby/';
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 跳转到大厅
+                        window.location.href = '/lobby/';
+                    } else {
+                        this.showMessage(data.error || '离开房间失败', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('离开房间请求失败:', error);
+                    this.showMessage('网络错误，离开房间失败', 'error');
+                });
             });
         }
 
@@ -439,6 +513,19 @@ class GomokuGame {
         document.addEventListener('keydown', (e) => {
             // 只有在游戏已结束并且有移动历史时才响应键盘事件
             if (this.gameStatus === 'finished' && this.history.moveList && this.history.moveList.length > 0) {
+                // 左箭头键 - 上一步
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.history.prevHistory();
+                }
+                // 右箭头键 - 下一步
+                else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    this.history.nextHistory();
+                }
+            }
+            // 添加在游戏进行中也能使用键盘快捷键查看历史（如果正在查看历史的话）
+            else if (this.history.isViewingHistory && this.history.moveList && this.history.moveList.length > 0) {
                 // 左箭头键 - 上一步
                 if (e.key === 'ArrowLeft') {
                     e.preventDefault();
@@ -650,6 +737,53 @@ class GomokuGame {
                     this.communication.requestRematch();
                 };
             }
+            
+            // 绑定回顾按钮
+            const reviewBtn = document.getElementById('review-btn');
+            if (reviewBtn) {
+                reviewBtn.onclick = () => {
+                    // 关闭模态框
+                    modal.classList.remove('show');
+                    
+                    // 设置为回顾模式，防止弹窗再次出现
+                    this.history.isReviewMode = true;
+                    
+                    // 更新URL以反映回顾模式状态
+                    try {
+                        const url = new URL(window.location);
+                        url.searchParams.set('review', 'true');
+                        window.history.replaceState({}, '', url);
+                    } catch (e) {
+                        // ignore
+                    }
+                    
+                    // 跳转到第一步
+                    if (this.history.moveList && this.history.moveList.length > 0) {
+                        this.history.jumpToMove(0);
+                        this.history.updateHistoryNavButtons();
+                        
+                        // 显示提示信息
+                        this.showMessage('已进入回顾模式，可以使用 ← → 键或上下一步按钮查看历史', 'info');
+                    } else {
+                        this.showMessage('暂无移动历史可供回顾', 'warning');
+                    }
+                };
+            }
+            
+            // 离开游戏按钮（可能用于拒绝再来一局请求）
+            const leaveGameBtn = document.getElementById('leave-game-btn');
+            if (leaveGameBtn) {
+                leaveGameBtn.onclick = () => {
+                    // 检查是否是拒绝再来一局的情况
+                    if (leaveGameBtn.classList.contains('btn-danger')) {
+                        // 按钮是红色的，表示这是拒绝再来一局的按钮
+                        this.communication.rejectRematch();
+                    } else {
+                        // 正常离开房间
+                        window.location.href = '/lobby/';
+                    }
+                };
+            }
         }
     }
 }
@@ -676,6 +810,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log('Suppressing initial game-over modal because page was opened from profile.');
                         return;
                     }
+                    
+                    // 检查是否处于回顾模式
+                    let isReviewMode = false;
+                    try {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        if (urlParams.get('review') === 'true') {
+                            isReviewMode = true;
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                    
+                    if (isReviewMode) {
+                        console.log('Suppressing initial game-over modal because page is in review mode.');
+                        return;
+                    }
+                    
                     if (statusText.includes('你赢了')) {
                         window.game.showGameOverModal('你赢了！', '恭喜你赢得了这局游戏！');
                     } else if (statusText.includes('和棋')) {
@@ -693,12 +844,86 @@ document.addEventListener('DOMContentLoaded', function() {
 function copyRoomLink() {
     const linkInput = document.getElementById('room-link');
     linkInput.select();
-    navigator.clipboard.writeText(linkInput.value).then(() => {
-        // 使用通知而不是alert
-        if (window.game) {
-            window.game.showMessage('房间链接已复制到剪贴板！', 'success');
+    
+    // 检查 clipboard API 是否可用
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(linkInput.value).then(() => {
+            // 使用通知而不是alert
+            if (window.game && typeof window.game.showMessage === 'function') {
+                window.game.showMessage('房间链接已复制到剪贴板！', 'success');
+            } else {
+                // 如果无法使用统一的消息系统，则使用Toast样式
+                const toast = document.createElement('div');
+                toast.className = 'toast success';
+                toast.textContent = '房间链接已复制到剪贴板！';
+                document.body.appendChild(toast);
+                
+                // 3秒后移除提示
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 3000);
+            }
+        }).catch(err => {
+            // 如果复制失败，回退到传统方法
+            fallbackCopyTextToClipboard(linkInput.value);
+        });
+    } else {
+        // 如果clipboard API不可用，使用传统方法
+        fallbackCopyTextToClipboard(linkInput.value);
+    }
+}
+
+// 备选的文本复制方法
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // 避免滚动到底部
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            // 使用通知而不是alert
+            if (window.game && typeof window.game.showMessage === 'function') {
+                window.game.showMessage('房间链接已复制到剪贴板！', 'success');
+            } else {
+                // 如果无法使用统一的消息系统，则使用Toast样式
+                const toast = document.createElement('div');
+                toast.className = 'toast success';
+                toast.textContent = '房间链接已复制到剪贴板！';
+                document.body.appendChild(toast);
+                
+                // 3秒后移除提示
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 3000);
+            }
         } else {
-            alert('房间链接已复制到剪贴板！');
+            if (window.game && typeof window.game.showMessage === 'function') {
+                window.game.showMessage('复制失败，请手动复制链接', 'error');
+            } else {
+                alert('复制失败，请手动复制链接');
+            }
         }
-    });
+    } catch (err) {
+        if (window.game && typeof window.game.showMessage === 'function') {
+            window.game.showMessage('复制失败，请手动复制链接', 'error');
+        } else {
+            alert('复制失败，请手动复制链接');
+        }
+    }
+    
+    document.body.removeChild(textArea);
 }

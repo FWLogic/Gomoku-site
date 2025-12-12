@@ -103,7 +103,8 @@
 .modal-footer {
     padding: 15px 20px;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 10px;
     background-color: #f8f9fa;
 }
 
@@ -117,6 +118,17 @@
 }
 
 .modal-footer .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#review-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+
+#review-btn:hover {
+    background-color: #138496;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

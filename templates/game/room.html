@@ -36,7 +36,7 @@
 
         <div class="game-container">
             <!-- 对手信息 -->
-            <div class="player-info card">
+            <div class="player-info card opponent-info">
                 <div id="opponent-info">
                     {% if opponent %}
                     <div class="avatar-stack-centered">
@@ -51,10 +51,11 @@
                         </a>
                         <div class="player-details">
                             <div class="player-name">{{ opponent.user.username }}</div>
-                            <div class="player-color color-{% if player_color == 'black' %}white{% else %}black{% endif %}">
-                                {% if player_color == 'black' %}白棋{% else %}黑棋{% endif %}
+                            <div class="player-color color-{{ opponent_color }}">
+                                {% if opponent_color == 'black' %}黑棋{% else %}白棋{% endif %}
                             </div>
                         </div>
+                        <div class="player-leave-tag" style="display: none;">已离开</div>
                     </div>
                      {% if friend_stats %}
                     <div class="stats-grid">
@@ -140,7 +141,7 @@
                             分享房间链接给朋友:
                         </p>
                         <div style="display: flex; gap: 10px;">
-                            <input type="text" id="room-link" value="{{ request.build_absolute_uri }}"
+                            <input type="text" id="room-link" value="http://w.nat123.cc/room/{{ room.room_code }}/"
                                    readonly style="flex: 1; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
                             <button class="btn btn-secondary" onclick="copyRoomLink()">
                                 <i class="fas fa-copy"></i>
@@ -179,6 +180,26 @@
             <div class="board-container card">
                 <div id="chessboard" class="board">
                     <div class="board-inner"></div>
+                </div>
+                <!-- 添加禁手提示标签（移到棋盘外部） -->
+                <div class="forbidden-tip-container">
+                    <span class="forbidden-tip" title="点击黑方棋子指出黑方禁手点">禁手</span>
+                </div>
+                
+                <!-- 控制按钮移到棋盘下方 -->
+                <div class="board-bottom">
+                    <div class="control-buttons">
+                        <button class="btn btn-warning" id="undo-btn" {% if room.status != 'playing' %}disabled{% endif %}>
+                            <i class="fas fa-undo"></i> 悔棋
+                        </button>
+                        <button class="btn btn-secondary" id="draw-btn" {% if room.status != 'playing' %}disabled{% endif %}>
+                            <i class="fas fa-handshake"></i> 和棋
+                        </button>
+                        <!-- 添加音效开关按钮 -->
+                        <button class="btn btn-info" id="sound-toggle-btn">
+                            <i class="fas fa-volume-up"></i> 音效开启
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -229,20 +250,6 @@
                     </div>
                 </div>
 
-                <!-- 游戏控制按钮 -->
-                <div class="control-buttons">
-                    <button class="btn btn-warning" id="undo-btn" {% if room.status != 'playing' %}disabled{% endif %}>
-                        <i class="fas fa-undo"></i> 悔棋
-                    </button>
-                    <button class="btn btn-secondary" id="draw-btn" {% if room.status != 'playing' %}disabled{% endif %}>
-                        <i class="fas fa-handshake"></i> 和棋
-                    </button>
-                    <!-- 添加音效开关按钮 -->
-                    <button class="btn btn-info" id="sound-toggle-btn">
-                        <i class="fas fa-volume-up"></i> 音效开启
-                    </button>
-                </div>
-
                 <!-- 聊天区域 -->
                 <div class="chat-container">
                     <div class="section-title">
@@ -267,9 +274,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- 移动历史（已移至棋盘下方） -->
-                <!-- ...removed... -->
             </div>
         </div>
     </div>
@@ -280,6 +284,7 @@
         window.playerId = {{ player.id }};
         window.playerColor = '{{ player_color }}';
         window.lastChatId = {{ last_chat_id|default:0 }};
+        {% if opponent %}window.opponentId = {{ opponent.id }};{% endif %}
     </script>
 
     {% csrf_token %}
@@ -295,6 +300,9 @@
                 <div id="game-stats"></div>
             </div>
             <div class="modal-footer">
+                <button id="review-btn" class="btn btn-info">
+                    <i class="fas fa-history"></i> 回顾
+                </button>
                 <button id="leave-game-btn" class="btn btn-secondary">
                     <i class="fas fa-sign-out-alt"></i> 离开
                 </button>
@@ -313,14 +321,6 @@
 <script src="{% static 'js/game-communication.js' %}"></script>
 <script src="{% static 'js/room-main.js' %}"></script>
 <script>
-    function copyRoomLink() {
-        const linkInput = document.getElementById('room-link');
-        linkInput.select();
-        navigator.clipboard.writeText(linkInput.value).then(() => {
-            alert('房间链接已复制到剪贴板！');
-        });
-    }
-
     // 如果游戏已结束，禁用棋盘点击
     {% if room.status == 'finished' %}
     document.addEventListener('DOMContentLoaded', function() {
@@ -334,7 +334,7 @@
         var isReviewMode = false;
         try {
             var urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('ref') === 'profile') {
+            if (urlParams.get('ref') === 'profile' || urlParams.get('review') === 'true') {
                 isReviewMode = true;
             } else {
                 // 回退检查 body data 属性

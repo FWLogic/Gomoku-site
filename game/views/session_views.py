@@ -12,7 +12,10 @@ from ..models import *
 @csrf_exempt
 def update_session(request):
     """更新会话活动时间"""
-    player = Player.objects.get(user=request.user)
+    try:
+        player = Player.objects.get(user=request.user)
+    except Player.DoesNotExist:
+        player = Player.objects.create(user=request.user)
 
     # 更新会话活动时间
     updated = PlayerSession.objects.filter(
@@ -22,10 +25,10 @@ def update_session(request):
 
     # 如果没有会话记录，创建一个
     if updated == 0:
-        PlayerSession.objects.create(
+        PlayerSession.objects.get_or_create(
             player=player,
             session_key=request.session.session_key,
-            last_activity=timezone.now()
+            defaults={'last_activity': timezone.now()}
         )
 
     return JsonResponse({

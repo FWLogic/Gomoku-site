@@ -1,4 +1,3 @@
-// 游戏历史记录管理器
 class GameHistory {
     constructor(game) {
         this.game = game;
@@ -138,10 +137,13 @@ class GameHistory {
             // Choose primary key
             const key = coordKey || fallbackKey;
 
+            // 重新计算正确的移动编号，确保连续性
+            const correctedMoveNumber = this.moveList.length + 1;
+
             const el = document.createElement('div');
             el.className = 'move-item';
             el.innerHTML = `
-                <span class="move-number">#${this.game.escapeHtml(String(moveNumber))}</span>
+                <span class="move-number">#${this.game.escapeHtml(String(correctedMoveNumber))}</span>
                 <span class="move-coords">${this.game.escapeHtml(coordsText)}</span>
                 <span class="move-player">${this.game.escapeHtml(playerNorm === '__unknown__' ? playerName : playerNorm)}</span>
             `;
@@ -150,7 +152,7 @@ class GameHistory {
 
             // 将解析后的 move 推入 moveList（统一使用 0-based row/col）
             if (parsedRow !== null && parsedCol !== null) {
-                const moveObj = { moveNumber: Number(moveNumber), row: parsedRow, col: parsedCol, playerName: playerNorm };
+                const moveObj = { moveNumber: Number(correctedMoveNumber), row: parsedRow, col: parsedCol, playerName: playerNorm };
                 this.moveList.push(moveObj);
                  // 给元素设置索引
                  el.dataset.index = String(this.moveList.length - 1);
@@ -270,13 +272,15 @@ class GameHistory {
 
     // 恢复到最新局面（实时棋盘）
     showLiveBoard() {
+        // 在回顾模式下不执行恢复实时视图操作
+        if (this.game.history.isReviewMode) {
+            return;
+        }
+        
         try {
             // 退出历史查看模式
             this.isViewingHistory = false;
             this.viewingIndex = null;
-
-            // 清除历史高亮
-            document.querySelectorAll('#move-history .move-item').forEach(el => el.classList.remove('history-active'));
 
             // 优先使用 liveBoard（后端最新状态）来恢复视图
             if (this.game.liveBoard && Array.isArray(this.game.liveBoard)) {
@@ -289,35 +293,26 @@ class GameHistory {
                     if (last) this.game.lastMove = { row: last.row, col: last.col };
                 }
                 this.game.updateBoard(this.game.board);
-
-                // 高亮移动历史列表的最后一项（如果存在）以对应当前显示的最新步
-                try {
-                    const container = document.getElementById('move-history');
-                    if (container && container.lastElementChild) {
-                        // 先移除其他高亮
-                        container.querySelectorAll('.move-item.history-active').forEach(el => el.classList.remove('history-active'));
-                        container.lastElementChild.classList.add('history-active');
-                    }
-                } catch (e) {
-                    // ignore
-                }
             } else if (this.moveList.length > 0) {
                 // 没有 liveBoard 时重建最新步
                 this.jumpToMove(this.moveList.length - 1);
                 // jumpToMove 会把 isViewingHistory 设为 true，重置回 false
                 this.isViewingHistory = false;
                 this.viewingIndex = null;
+                return; // jumpToMove 已经处理了高亮，直接返回
+            }
 
-                // 确保最后一项高亮
-                try {
-                    const container = document.getElementById('move-history');
-                    if (container && container.lastElementChild) {
-                        container.querySelectorAll('.move-item.history-active').forEach(el => el.classList.remove('history-active'));
-                        container.lastElementChild.classList.add('history-active');
-                    }
-                } catch (e) {
-                    // ignore
+            // 高亮移动历史列表的最后一项（如果存在）以对应当前显示的最新步
+            try {
+                // 清除历史高亮
+                document.querySelectorAll('#move-history .move-item').forEach(el => el.classList.remove('history-active'));
+                
+                const container = document.getElementById('move-history');
+                if (container && container.lastElementChild) {
+                    container.lastElementChild.classList.add('history-active');
                 }
+            } catch (e) {
+                // ignore
             }
 
             this.game.showMessage('已恢复实时视图', 'success');
@@ -332,7 +327,7 @@ class GameHistory {
         try {
             if (!this.moveList || this.moveList.length === 0) return;
             // 如果当前在实时视图，直接进入历史并跳到倒数第二步（即回退一步），避免需要两次点击
-            if (!this.isViewingHistory) {
+            if (!this.isViewingHistory && !this.game.history.isReviewMode) {
                 if (this.moveList.length >= 2) {
                     this.jumpToMove(this.moveList.length - 2);
                 } else {
@@ -357,20 +352,25 @@ class GameHistory {
         try {
             if (!this.moveList || this.moveList.length === 0) return;
 
-            // 如果不在历史查看模式，恢复实时视图
-            if (!this.isViewingHistory) {
+            // 如果不在历史查看模式，且不是回顾模式，则恢复实时视图
+            if (!this.isViewingHistory && !this.game.history.isReviewMode) {
                 this.showLiveBoard();
                 return;
             }
 
-            const idx = (this.viewingIndex !== null && this.viewingIndex !== undefined) ? this.viewingIndex : 0;
-            const next = Math.min(this.moveList.length - 1, idx + 1);
-            // 如果已经是最后一步，恢复实时视图
-            if (next >= this.moveList.length - 1) {
-                this.showLiveBoard();
-            } else {
-                this.jumpToMove(next);
+            // 如果是回顾模式或者在历史查看模式
+            if (this.isViewingHistory || this.game.history.isReviewMode) {
+                const idx = (this.viewingIndex !== null && this.viewingIndex !== undefined) ? this.viewingIndex : 0;
+                const next = Math.min(this.moveList.length - 1, idx + 1);
+                
+                // 如果已经是最后一步，在回顾模式下停留在最后一步而不恢复实时视图
+                if (next >= this.moveList.length - 1) {
+                    this.jumpToMove(this.moveList.length - 1);
+                } else {
+                    this.jumpToMove(next);
+                }
             }
+            
             this.updateHistoryNavButtons();
         } catch (e) {
             console.error('nextHistory error', e);
@@ -393,7 +393,8 @@ class GameHistory {
             if (!this.isViewingHistory || this.viewingIndex === null || this.viewingIndex === undefined) {
                 // 在实时视图: 上一步可用（跳回最后一步），下一步禁用
                 if (prevBtn) prevBtn.disabled = false;
-                if (nextBtn) nextBtn.disabled = true;
+                // 在回顾模式下，下一步也应该可用
+                if (nextBtn) nextBtn.disabled = this.game.history.isReviewMode ? false : true;
                 return;
             }
 

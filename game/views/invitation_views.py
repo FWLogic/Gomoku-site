@@ -15,56 +15,63 @@ from ..models import *
 @csrf_exempt
 def invite_player(request, player_id):
     """邀请玩家对战"""
-    current_player = Player.objects.get(user=request.user)
-    invited_player = get_object_or_404(Player, id=player_id)
+    try:
+        current_player = Player.objects.get(user=request.user)
+        invited_player = get_object_or_404(Player, id=player_id)
 
-    # 检查是否已经存在等待中的房间
-    existing_room = GomokuRoom.objects.filter(
-        creator=current_player,
-        status='waiting',
-        opponent__isnull=True
-    ).first()
-
-    # 如果没有房间，创建新房间
-    if not existing_room:
-        room = GomokuRoom.objects.create(
+        # 检查是否已经存在等待中的房间
+        existing_room = GomokuRoom.objects.filter(
             creator=current_player,
-            status='waiting'
+            status='waiting',
+            opponent__isnull=True
+        ).first()
+
+        # 如果没有房间，创建新房间
+        if not existing_room:
+            room = GomokuRoom.objects.create(
+                creator=current_player,
+                status='waiting',
+                creator_present=True
+            )
+            # 随机决定谁先走
+            room.current_turn = current_player
+            room.save()
+        else:
+            room = existing_room
+        
+        # 检查是否已经发送过邀请
+        existing_invitation = Invitation.objects.filter(
+            sender=current_player,
+            receiver=invited_player,
+            room=room,
+            status='pending'
+        ).first()
+        
+        if existing_invitation:
+            return JsonResponse({
+                'success': False,
+                'error': f'已经向 {invited_player.user.username} 发送过邀请，请等待对方回应'
+            })
+        
+        # 创建邀请记录
+        invitation = Invitation.objects.create(
+            sender=current_player,
+            receiver=invited_player,
+            room=room,
+            status='pending'
         )
-        # 随机决定谁先走
-        room.current_turn = current_player
-        room.save()
-    else:
-        room = existing_room
-    
-    # 检查是否已经发送过邀请
-    existing_invitation = Invitation.objects.filter(
-        sender=current_player,
-        receiver=invited_player,
-        room=room,
-        status='pending'
-    ).first()
-    
-    if existing_invitation:
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'已向 {invited_player.user.username} 发送邀请，房间号: {room.room_code}',
+            'room_code': room.room_code,
+            'invitation_id': invitation.id
+        })
+    except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'已经向 {invited_player.user.username} 发送过邀请，请等待对方回应'
+            'error': f'邀请发送失败: {str(e)}'
         })
-    
-    # 创建邀请记录
-    invitation = Invitation.objects.create(
-        sender=current_player,
-        receiver=invited_player,
-        room=room,
-        status='pending'
-    )
-    
-    return JsonResponse({
-        'success': True,
-        'message': f'已向 {invited_player.user.username} 发送邀请，房间号: {room.room_code}',
-        'room_code': room.room_code,
-        'invitation_id': invitation.id
-    })
 
 
 @login_required

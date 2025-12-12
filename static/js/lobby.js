@@ -5,17 +5,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 加载在线玩家列表
     loadOnlinePlayers();
+    
+    // 加载可用房间列表
+    loadAvailableRooms();
 
-    // 定期刷新在线玩家列表（每30秒）
-    let onlinePlayersInterval = setInterval(loadOnlinePlayers, 30000);
-
-    // 定期检查邀请通知（每10秒）
-    let invitationsInterval = setInterval(checkInvitations, 10000);
+    // 定期刷新在线玩家列表（每45秒）
+    let onlinePlayersInterval = setInterval(loadOnlinePlayers, 45000);
+    
+    // 定期检查邀请通知（每15秒）
+    let invitationsInterval = setInterval(checkInvitations, 15000);
 
     // 初始加载邀请通知
     checkInvitations();
 
-    // 每2分钟更新一次会话活动时间
+    // 每3分钟更新一次会话活动时间
     let sessionUpdateInterval = setInterval(() => {
         if (!document.hidden) {
             fetch('/api/update-session/', {
@@ -28,12 +31,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('更新会话活动时间出错:', error);
             });
         }
-    }, 120000); // 120000毫秒 = 2分钟
+    }, 180000); // 180000毫秒 = 3分钟
 
     // 添加页面可见性变化事件监听，当页面重新可见时刷新在线玩家列表和邀请通知
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             loadOnlinePlayers();
+            loadAvailableRooms();
             checkInvitations();
             // 页面重新可见时，立即更新一次session
             fetch('/api/update-session/', {
@@ -77,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
     copyButtons.forEach(button => {
         button.addEventListener('click', function() {
             const roomCode = this.dataset.room;
-            const roomUrl = window.location.origin + '/join/' + roomCode + '/';
+            const roomUrl = 'http://w.nat123.cc/room/' + roomCode + '/';
 
             navigator.clipboard.writeText(roomUrl).then(() => {
                 // 创建临时提示元素
@@ -108,7 +112,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
                     }
                 })
-                .then(response => response.json())
+                .then(response => {
+                    // 检查响应是否为JSON格式
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.indexOf('application/json') !== -1) {
+                        return response.json();
+                    } else {
+                        // 如果不是JSON，抛出错误
+                        throw new Error('服务器返回了非JSON响应');
+                    }
+                })
                 .then(data => {
                     if (data.success) {
                         // 创建成功提示
@@ -142,6 +155,49 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // 处理创建房间按钮，创建后立即刷新房间列表
+    const createRoomButton = document.querySelector('.lobby-create-btn');
+    if (createRoomButton) {
+        createRoomButton.addEventListener('click', function(e) {
+            e.preventDefault(); // 阻止默认跳转行为
+            
+            // 通过AJAX请求创建房间
+            fetch('/room/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 立即刷新房间列表
+                    loadAvailableRooms();
+                    
+                    // 在当前窗口中跳转到创建的房间
+                    window.location.href = `/room/${data.room_code}/`;
+                } else {
+                    // 创建失败，显示错误信息
+                    const toast = document.createElement('div');
+                    toast.className = 'toast error';
+                    toast.textContent = data.error || '创建房间失败';
+                    document.body.appendChild(toast);
+                    
+                    // 3秒后移除提示
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 3000);
+                }
+            })
+            .catch(error => {
+                console.error('创建房间失败:', error);
+                alert('创建房间失败，请重试');
+            });
+        });
+    }
 
     // 加载在线玩家列表函数
     function loadOnlinePlayers() {
@@ -228,6 +284,83 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
     }
+    
+    // 加载可用房间列表函数
+    function loadAvailableRooms() {
+        const availableRoomsSection = document.querySelector('.room-list:nth-child(2)'); // 加入房间部分
+        
+        // 从服务器获取可用房间数据
+        fetch('/api/available-rooms/', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.rooms && data.rooms.length > 0) {
+                // 渲染可用房间列表
+                let roomsHTML = '<h3 class="section-title"><i class="fas fa-users"></i> 加入房间</h3>';
+                data.rooms.forEach(room => {
+                    roomsHTML += `
+                        <div class="room-item">
+                            <div class="room-header">
+                                <span class="room-code">#${room.room_code}</span>
+                                <span class="room-status status-waiting">等待中</span>
+                            </div>
+                            <div class="room-meta">
+                                房主: ${room.creator_username}
+                            </div>
+                            <div class="room-actions">
+                                <a href="/join/${room.room_code}/" class="btn btn-success">
+                                    加入房间
+                                </a>
+                                <button class="btn btn-secondary copy-room-link" data-room="${room.room_code}">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                availableRoomsSection.innerHTML = roomsHTML;
+                
+                // 为新添加的复制按钮添加事件监听器
+                const newCopyButtons = availableRoomsSection.querySelectorAll('.copy-room-link');
+                newCopyButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const roomCode = this.dataset.room;
+                        const roomUrl = 'http://w.nat123.cc/room/' + roomCode + '/';
+
+                        navigator.clipboard.writeText(roomUrl).then(() => {
+                            // 创建临时提示元素
+                            const toast = document.createElement('div');
+                            toast.className = 'toast';
+                            toast.textContent = '房间链接已复制到剪贴板！';
+                            document.body.appendChild(toast);
+
+                            // 3秒后移除提示
+                            setTimeout(() => {
+                                toast.remove();
+                            }, 3000);
+                        });
+                    });
+                });
+            } else {
+                // 没有可用房间
+                availableRoomsSection.innerHTML = `
+                    <h3 class="section-title"><i class="fas fa-users"></i> 加入房间</h3>
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>暂时没有可加入的房间</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('获取可用房间失败:', error);
+        });
+    }
 
     // 邀请玩家函数
     function invitePlayer(playerId) {
@@ -245,7 +378,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRFToken': csrftoken
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            // 检查响应的内容类型
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.indexOf('application/json') !== -1) {
+                return response.json();
+            } else {
+                // 如果不是JSON，抛出错误
+                throw new Error('服务器返回了意外的内容类型');
+            }
+        })
         .then(data => {
             if (data.success) {
                 // 创建成功提示
@@ -290,7 +432,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             console.error('邀请玩家失败:', error);
-            alert('邀请失败，请重试');
+            // 使用更友好的提示方式替代alert
+            const toast = document.createElement('div');
+            toast.className = 'toast error';
+            toast.textContent = '邀请失败，请重试';
+            document.body.appendChild(toast);
+            
+            // 3秒后移除提示
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
         });
     }
     

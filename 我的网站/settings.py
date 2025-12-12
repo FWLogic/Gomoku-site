@@ -72,7 +72,13 @@ TEMPLATES = [
 WSGI_APPLICATION = '我的网站.wsgi.application'
 
 AUTH_USER_MODEL = 'account.CustomUser'
-LOGIN_URL = '/login/'
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/lobby/'
+
+# Session settings for permanent login
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 365 * 10  # 10年
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases

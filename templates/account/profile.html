@@ -13,7 +13,7 @@
             <h1><i class="fas fa-chess-board"></i> 玩家资料</h1>
             <div>
                 {% if request.GET.ref == 'room' and request.GET.room_code %}
-                <a href="{% url 'game_room' request.GET.room_code %}" class="btn btn-secondary">
+                <a href="{% url 'room' request.GET.room_code %}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> 返回房间
                 </a>
                 {% else %}
@@ -142,7 +142,7 @@
                             {% endif %}
                         </div>
                         {% if is_own_profile %}
-                        <a href="{% url 'game_room' game.room_code %}" class="btn btn-secondary" style="width: 100%;">
+                        <a href="{% url 'room' game.room_code %}" class="btn btn-secondary" style="width: 100%;">
                             查看详情
                         </a>
                         {% endif %}

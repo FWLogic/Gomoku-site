@@ -12,20 +12,19 @@
         <div class="header">
             <h1><i class="fas fa-chess-board"></i> 五子棋对战平台</h1>
             <div class="user-info">
-                <div class="avatar">
-                    {% if player.avatar %}
-                    <img src="{{ player.avatar.url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
-                    {% else %}
-                    {{ player.user.username|first|upper }}
-                    {% endif %}
-                </div>
+                <a href="{% url 'player_profile' player.id %}" class="avatar-link">
+                    <div class="avatar">
+                        {% if player.avatar %}
+                        <img src="{{ player.avatar.url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                        {% else %}
+                        {{ player.user.username|first|upper }}
+                        {% endif %}
+                    </div>
+                </a>
                 <div>
                     <div class="username">{{ player.user.username }}</div>
                     <div class="user-stats">胜率: {{ player.win_rate|floatformat:1 }}%</div>
                 </div>
-                <a href="{% url 'profile' %}" class="btn btn-secondary">
-                    <i class="fas fa-user"></i> 我的资料
-                </a>
                 <a href="{% url 'logout' %}" class="btn btn-secondary">
                     <i class="fas fa-sign-out-alt"></i> 退出
                 </a>
@@ -59,7 +58,7 @@
                         创建时间: {{ room.created_at|date:"m-d H:i" }}
                     </div>
                     <div class="room-actions">
-                        <a href="{% url 'game_room' room.room_code %}" class="btn btn-primary">
+                        <a href="{% url 'room' room.room_code %}" class="btn btn-primary">
                             {% if room.status == 'waiting' %}等待加入
                             {% elif room.status == 'playing' %}继续游戏
                             {% else %}查看结果{% endif %}

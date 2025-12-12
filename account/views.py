@@ -2,8 +2,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db.models import Q
+from django.urls import reverse
+from django.http import HttpResponse
 from game.models import Player, PlayerSession, GomokuRoom, MoveHistory, ChatMessage, FriendStats
 import time
+import json
 
 
 def login_view(request):
@@ -33,10 +37,34 @@ def login_view(request):
             session_key=request.session.session_key
         )
 
-        # 设置永不过期的session（30天）
-        request.session.set_expiry(60 * 60 * 24 * 30)
+        # 设置永不过期的session（10年）
+        request.session.set_expiry(60 * 60 * 24 * 365 * 10)
 
-        return redirect('lobby')
+        # 设置永久登录cookie
+        response = redirect('lobby')
+        response.set_cookie('permanent_username', username, max_age=60*60*24*365*10, httponly=True)
+        return response
+
+    # 检查是否存在永久登录cookie
+    permanent_username = request.COOKIES.get('permanent_username')
+    if permanent_username:
+        try:
+            User = get_user_model()
+            user = User.objects.get(username=permanent_username)
+            login(request, user)
+            
+            # 更新会话记录
+            PlayerSession.objects.create(
+                player=Player.objects.get(user=user),
+                session_key=request.session.session_key
+            )
+            
+            # 刷新cookie过期时间
+            response = redirect('lobby')
+            response.set_cookie('permanent_username', permanent_username, max_age=60*60*24*365*10, httponly=True)
+            return response
+        except User.DoesNotExist:
+            pass
 
     return render(request, 'account/login.html')
 
@@ -54,8 +82,59 @@ def logout_view(request):
         except:
             pass
 
+    # 清除永久登录cookie
+    response = redirect('login')
+    response.delete_cookie('permanent_username')
     logout(request)
-    return redirect('login')
+    return response
+
+
+@login_required
+def profile_view(request, player_id=None):
+    """显示用户资料页面"""
+    # 如果没有提供player_id，则显示当前用户的资料
+    if player_id is None:
+        player = get_object_or_404(Player, user=request.user)
+        is_own_profile = True
+    else:
+        player = get_object_or_404(Player, id=player_id)
+        is_own_profile = (player.user == request.user)
+    
+    # 获取对战统计
+    stats_list = []
+    if is_own_profile:
+        # 获取自己的对战统计
+        friend_stats = FriendStats.objects.filter(
+            Q(player1=player) | Q(player2=player)
+        ).select_related('player1', 'player2')
+        
+        for stats in friend_stats:
+            opponent = stats.player2 if stats.player1 == player else stats.player1
+            wins = stats.get_wins_for_player(player)
+            # 计算失败场次：总场次 - 胜利场次 - 平局场次
+            losses = stats.total_games - wins - stats.draws
+            stats_list.append({
+                'opponent': opponent,
+                'wins': wins,
+                'losses': losses,
+                'draws': stats.draws,
+                'last_played': stats.last_played
+            })
+    
+    # 获取最近的游戏记录
+    recent_games = GomokuRoom.objects.filter(
+        Q(creator=player) | Q(opponent=player),
+        status='finished'
+    ).order_by('-created_at')[:10]
+    
+    context = {
+        'profile_player': player,
+        'is_own_profile': is_own_profile,
+        'stats_list': stats_list,
+        'recent_games': recent_games,
+    }
+    
+    return render(request, 'account/profile.html', context)
 
 
 @login_required
@@ -215,7 +294,7 @@ def edit_profile(request):
         # Preserve optional ref/room_code so that returning from profile can go back to origin (e.g., room)
         ref = request.GET.get('ref') or request.POST.get('ref')
         room_code = request.GET.get('room_code') or request.POST.get('room_code')
-        redirect_url = f'/profile/{player.id}/?updated={ts}'
+        redirect_url = reverse('player_profile', args=[player.id]) + f'?updated={ts}'
         if ref:
             redirect_url += f'&ref={ref}'
             if room_code:

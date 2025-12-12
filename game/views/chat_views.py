@@ -73,15 +73,30 @@ def get_room_state(request, room_code):
         except:
             last_chat_id = 0
 
-        new_chats = ChatMessage.objects.filter(
-            room=room,
-            id__gt=last_chat_id
-        ).select_related('player').order_by('timestamp')
+        # 如果last_chat_id为0，说明是初次加载，不需要返回已存在的消息（因为这些消息已经在页面上渲染了）
+        if last_chat_id == 0:
+            new_chats = []
+        else:
+            new_chats = ChatMessage.objects.filter(
+                room=room,
+                id__gt=last_chat_id
+            ).select_related('player').order_by('timestamp')
 
         # 获取移动历史
-        move_history = MoveHistory.objects.filter(room=room).order_by('-move_number')[:10]
+        move_history = MoveHistory.objects.filter(room=room).order_by('move_number')
 
+        # 检查对手是否真的还在房间中
         opponent = room.opponent if room.opponent != player else room.creator
+        
+        # 如果房间状态是playing但没有对手，可能对手离开了
+        if room.status == 'playing' and not opponent:
+            # 检查是否是因为对手删除账户导致的
+            if room.opponent is None:
+                # 对手确实离开了房间
+                pass  # opponent已经是None，直接使用
+            else:
+                # 其他情况，确保对手信息正确
+                opponent = room.opponent if room.opponent != player else room.creator
 
         # 获取通知消息（如果有）
         notification_message = room.notification_message
@@ -123,15 +138,13 @@ def get_room_state(request, room_code):
             'player': {
                 'id': player.id,
                 'username': player.user.username,
-                'color': 'black' if (room.creator == player and room.creator_is_black) or \
-                                    (room.opponent == player and not room.creator_is_black) else 'white',
+                'color': room.get_player_color(player),
                 'avatar_url': player.avatar.url if player.avatar else None,
             },
             'opponent': {
                 'id': opponent.id if opponent else None,
                 'username': opponent.user.username if opponent else None,
-                'color': 'black' if (room.creator == opponent and room.creator_is_black) or \
-                                 (room.opponent == opponent and not room.creator_is_black) else 'white' if opponent else None,
+                'color': room.get_player_color(opponent) if opponent else None,
                 'avatar_url': opponent.avatar.url if opponent and opponent.avatar else None,
             },
             'chats': [
@@ -143,11 +156,17 @@ def get_room_state(request, room_code):
                     'timestamp': chat.timestamp.isoformat()
                 } for chat in new_chats
             ],
+            'move_history': [{
+                'move_number': move.move_number,
+                'row': move.row,
+                'col': move.col,
+                'player_username': move.player.user.username
+            } for move in move_history],
             'last_move': {
-                'row': move_history[0].row if move_history else None,
-                'col': move_history[0].col if move_history else None,
-                'player': move_history[0].player.user.username if move_history else None,
-                'move_number': move_history[0].move_number if move_history else None
+                'row': move_history.last().row if move_history else None,
+                'col': move_history.last().col if move_history else None,
+                'player': move_history.last().player.user.username if move_history else None,
+                'move_number': move_history.last().move_number if move_history else None
             } if move_history else None
         })
 

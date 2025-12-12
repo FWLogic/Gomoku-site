@@ -77,6 +77,12 @@ class GomokuRoom(models.Model):
     
     # 棋色分配：True表示创建者是黑棋，False表示创建者是白棋
     creator_is_black = models.BooleanField(default=True)
+    
+    # 统一的玩家棋色分配字典，格式: {player_id: color}，其中 color 是 'black' 或 'white'
+    player_colors = models.TextField(default='{}')
+    
+    # 房主是否在房间中
+    creator_present = models.BooleanField(default=True)
 
     def get_board(self):
         try:
@@ -86,6 +92,27 @@ class GomokuRoom(models.Model):
 
     def set_board(self, board):
         self.board_state = json.dumps(board)
+        
+    def get_player_colors(self):
+        """获取玩家棋色分配"""
+        try:
+            return json.loads(self.player_colors)
+        except:
+            return {}
+            
+    def set_player_colors(self, colors):
+        """设置玩家棋色分配"""
+        self.player_colors = json.dumps(colors)
+
+    def get_player_color(self, player):
+        """获取指定玩家的棋子颜色"""
+        colors = self.get_player_colors()
+        return colors.get(str(player.id), 'black' if (player == self.creator and self.creator_is_black) or 
+                                               (player == self.opponent and not self.creator_is_black) else 'white')
+
+    def is_player_black(self, player):
+        """判断指定玩家是否执黑棋"""
+        return self.get_player_color(player) == 'black'
 
     def save(self, *args, **kwargs):
         if not self.room_code:

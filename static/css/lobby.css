@@ -19,6 +19,13 @@
     font-size: 18px;
 }
 
+/* 头像链接样式 */
+.avatar-link { 
+    display: inline-block; 
+    text-decoration: none; 
+    color: inherit; 
+}
+
 .room-meta {
     font-size: 14px;
     color: #666;

@@ -120,3 +120,22 @@
     margin-bottom: 0;
     font-size: 14px;
 }
+
+/* 对手离开标签 */
+.player-leave-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #dc3545;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 10;
+    display: none;
+}
+
+#opponent-info {
+    position: relative;
+}

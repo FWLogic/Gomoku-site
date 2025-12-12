@@ -6,18 +6,23 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 from ..models import *
+from django.db import transaction
 
 
 @login_required
 def lobby(request):
+    # 获取或创建玩家信息（不使用select_for_update以避免锁定）
     player, created = Player.objects.get_or_create(user=request.user)
 
-    # 更新或创建会话
-    session, created = PlayerSession.objects.update_or_create(
+    # 更新或创建会话（不使用select_for_update以避免锁定）
+    session, created = PlayerSession.objects.get_or_create(
         player=player,
         session_key=request.session.session_key,
         defaults={'last_activity': timezone.now()}
     )
+    if not created:
+        session.last_activity = timezone.now()
+        session.save(update_fields=['last_activity'])
 
     # 获取活跃房间
     my_active_rooms = GomokuRoom.objects.filter(
@@ -63,7 +68,7 @@ def get_online_players(request):
     # 获取最近5分钟内有活动记录的玩家
     five_minutes_ago = timezone.now() - timedelta(minutes=5)
 
-    # 先更新当前用户的会话活动时间
+    # 更新当前用户的会话活动时间
     updated_sessions = PlayerSession.objects.filter(
         player=current_player,
         session_key=request.session.session_key
@@ -71,10 +76,10 @@ def get_online_players(request):
 
     # 如果没有会话记录，创建一个
     if updated_sessions == 0:
-        PlayerSession.objects.create(
+        PlayerSession.objects.get_or_create(
             player=current_player,
             session_key=request.session.session_key,
-            last_activity=timezone.now()
+            defaults={'last_activity': timezone.now()}
         )
 
     # 使用values获取不重复的玩家ID，然后再获取完整的会话对象
@@ -115,3 +120,38 @@ def get_online_players(request):
         'success': True,
         'players': online_players
     })
+
+
+@login_required
+@require_POST
+def update_session(request):
+    """更新用户会话活动时间"""
+    try:
+        player = Player.objects.get(user=request.user)
+    except Player.DoesNotExist:
+        player = Player.objects.create(user=request.user)
+    
+    # 更新当前用户的会话活动时间
+    PlayerSession.objects.filter(
+        player=player,
+        session_key=request.session.session_key
+    ).update(last_activity=timezone.now())
+    
+    return JsonResponse({'success': True})
+
+
+@login_required
+def clear_session(request):
+    """清除用户会话"""
+    try:
+        player = Player.objects.get(user=request.user)
+    except Player.DoesNotExist:
+        player = Player.objects.create(user=request.user)
+    
+    # 删除当前用户的会话记录
+    PlayerSession.objects.filter(
+        player=player,
+        session_key=request.session.session_key
+    ).delete()
+    
+    return JsonResponse({'success': True})
