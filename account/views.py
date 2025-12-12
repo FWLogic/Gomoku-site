@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from game.models import Player, PlayerSession, GomokuRoom, MoveHistory, ChatMessage, FriendStats
 import time
 import json
+from urllib.parse import quote, unquote
 
 
 def login_view(request):
@@ -40,15 +41,17 @@ def login_view(request):
         # 设置永不过期的session（10年）
         request.session.set_expiry(60 * 60 * 24 * 365 * 10)
 
-        # 设置永久登录cookie
+        # 设置永久登录cookie（URL编码中文用户名）
         response = redirect('lobby')
-        response.set_cookie('permanent_username', username, max_age=60*60*24*365*10, httponly=True)
+        response.set_cookie('permanent_username', quote(username, safe=''), max_age=60*60*24*365*10, httponly=True)
         return response
 
     # 检查是否存在永久登录cookie
-    permanent_username = request.COOKIES.get('permanent_username')
-    if permanent_username:
+    permanent_username_encoded = request.COOKIES.get('permanent_username')
+    if permanent_username_encoded:
         try:
+            # URL解码用户名
+            permanent_username = unquote(permanent_username_encoded)
             User = get_user_model()
             user = User.objects.get(username=permanent_username)
             login(request, user)
@@ -59,9 +62,9 @@ def login_view(request):
                 session_key=request.session.session_key
             )
             
-            # 刷新cookie过期时间
+            # 刷新cookie过期时间（保持编码）
             response = redirect('lobby')
-            response.set_cookie('permanent_username', permanent_username, max_age=60*60*24*365*10, httponly=True)
+            response.set_cookie('permanent_username', permanent_username_encoded, max_age=60*60*24*365*10, httponly=True)
             return response
         except User.DoesNotExist:
             pass

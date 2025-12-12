@@ -1,6 +1,6 @@
 
 """
-WSGI config for 我的网站 project.
+WSGI config for gomoku_site project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -12,6 +12,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', '我的网站.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gomoku_site.settings')
 
 application = get_wsgi_application()

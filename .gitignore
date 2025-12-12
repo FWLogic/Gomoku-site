@@ -2,6 +2,7 @@
 __pycache__/
 db.sqlite3
 venv/
-requirements.txt
 runserver.txt
 .vscode
+.kiro
+.hypothesis
