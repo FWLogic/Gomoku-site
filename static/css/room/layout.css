@@ -1,0 +1,88 @@
+/* 游戏房间页面布局样式 */
+.game-container {
+    display: grid;
+    grid-template-columns: minmax(250px, 1fr) minmax(400px, 600px) minmax(250px, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+    max-width: 100%;
+}
+
+.player-info {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+}
+
+.game-controls {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+}
+
+.control-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .game-container {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
+
+    .board-container {
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .board {
+        width: 100%;
+        max-width: 500px;
+        aspect-ratio: 1 / 1; /* keep square */
+        box-sizing: border-box;
+        margin: 0 auto;
+        flex: 0 0 auto;
+    }
+
+    .board-bottom {
+        margin: 10px auto 0 auto;
+        width: 100%;
+        max-width: 500px;
+    }
+}
+
+@media (max-width: 768px) {
+    .board {
+        width: 100%;
+        max-width: 400px;
+        aspect-ratio: 1 / 1;
+        box-sizing: border-box;
+        margin: 0 auto;
+    }
+
+    .game-container {
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .board {
+        width: 100%;
+        max-width: 320px;
+        aspect-ratio: 1 / 1;
+        box-sizing: border-box;
+        margin: 0 auto;
+    }
+
+    .board-container {
+        padding: 10px;
+    }
+
+    .game-container {
+        gap: 10px;
+    }
+}

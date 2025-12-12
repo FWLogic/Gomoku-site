@@ -1,0 +1,156 @@
+/* 棋盘样式 */
+.board-container {
+    position: relative;
+    padding: var(--card-padding, 20px); /* fallback to 20px when variable not defined */
+    background: #f8f9fa;
+    border-radius: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center; /* center the board horizontally */
+    min-height: 400px;
+    width: 100%;
+    flex-direction: column; /* changed to column so board on top and history below */
+    box-sizing: border-box; /* ensure padding accounted for */
+    overflow: hidden; /* prevent children from spilling out */
+}
+
+.board {
+    position: relative;
+    width: 100%;
+    max-width: 740px; /* 扩大棋盘区域 */
+    margin: 0 auto;
+    box-sizing: border-box;
+    aspect-ratio: 1 / 1;
+    background: #e6b680;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    flex: 0 0 auto;
+}
+
+.board-inner {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    background-image: 
+        linear-gradient(to right, #000 1px, transparent 1px),
+        linear-gradient(to bottom, #000 1px, transparent 1px);
+    background-size: calc((100% - 1px) / 14) calc((100% - 1px) / 14); /* 调整网格尺寸确保边缘线完整显示 */
+    background-position: 0 0;
+    /* 添加外部边框确保边缘线可见 */
+    border: 1px solid #000;
+    /* 添加轻微的内阴影增强立体感 */
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* board bottom: move history under the board */
+.board-bottom {
+    width: 100%;
+    max-width: 700px; /* match board max-width so it aligns */
+    margin: 12px auto 0 auto; /* center and keep top spacing */
+    box-sizing: border-box;
+}
+
+.cell {
+    /* 相对于网格容器定位 */
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 2;
+    /* 创建层叠上下文 */
+    isolation: isolate;
+}
+
+.cell::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    max-width: 36px;
+    max-height: 36px;
+    min-width: 12px;
+    min-height: 12px;
+    background: transparent;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+/* If JS computes --cell-size and sets it on the board, use that to size pieces exactly */
+.board .cell::before {
+    width: calc(var(--cell-size) * var(--piece-ratio, 0.8));
+    height: calc(var(--cell-size) * var(--piece-ratio, 0.8));
+    max-width: calc(min(var(--cell-size), 36px));
+    max-height: calc(min(var(--cell-size), 36px));
+}
+
+.cell.black::before {
+    background: radial-gradient(circle at 30% 30%, #666, #000);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    z-index: 3;
+}
+
+.cell.white::before {
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+    z-index: 3;
+}
+
+/* 新落下的棋子动画效果 */
+.cell.black.piece-new::before,
+.cell.white.piece-new::before {
+    animation: pieceAppear 0.4s ease-out;
+}
+
+.star-point {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: #000;
+    border-radius: 50%;
+    z-index: 1;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.star-point.center-star {
+    width: 10px;
+    height: 10px;
+}
+
+.last-move-dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* use relative sizing so the dot scales with the cell */
+    width: 24%;
+    height: 24%;
+    max-width: 12px;
+    max-height: 12px;
+    background: red;
+    border-radius: 50%;
+    z-index: 10; /* 确保红点显示在棋子上方 */
+    pointer-events: none; /* 确保红点不影响点击事件 */
+}
+
+@keyframes pieceAppear {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}

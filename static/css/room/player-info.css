@@ -1,0 +1,122 @@
+/* 玩家信息样式 */
+.player-name {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.player-color {
+    display: inline-block;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.color-black {
+    background: #333;
+    color: white;
+}
+
+.color-white {
+    background: #f8f9fa;
+    color: #333;
+    border: 1px solid #dee2e6;
+}
+
+.color-waiting {
+    background: #f8f9fa;
+    color: #666;
+    border: 1px solid #dee2e6;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #667eea;
+}
+
+/* Avatar styles used on room page */
+.avatar-large {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #f5f6fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.avatar-large img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+    display: block; 
+}
+
+.avatar-initial { 
+    font-size: 32px; 
+}
+
+.avatar-link { 
+    display: inline-block; 
+    text-decoration: none; 
+    color: inherit; 
+}
+
+/* Centered stacked avatar+name container */
+.avatar-stack { 
+    display:flex; 
+    flex-direction:column; 
+    align-items:center; 
+    gap:8px; 
+    text-align:center; 
+    margin-bottom:12px; 
+}
+
+/* 新增：水平排列的头像、用户名和棋色 */
+.avatar-stack-centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.avatar-stack-centered .player-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* 修改为居中对齐 */
+}
+
+.avatar-stack-centered .player-name {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+
+.avatar-stack-centered .player-color {
+    margin-bottom: 0;
+    font-size: 14px;
+}

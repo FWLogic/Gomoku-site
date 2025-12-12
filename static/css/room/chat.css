@@ -1,0 +1,92 @@
+/* 聊天区域样式 */
+.chat-container {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 10px;
+}
+
+.chat-message {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+    clear: both;
+}
+
+.chat-message.own {
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+.chat-message:not(.own) {
+    align-items: flex-start;
+    margin-right: auto;
+}
+
+.chat-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #999;
+    padding: 0 5px;
+}
+
+.chat-message.own .chat-meta {
+    flex-direction: row-reverse;
+}
+
+.chat-sender {
+    font-weight: 600;
+    margin-right: 5px;
+}
+
+.chat-message.own .chat-sender {
+    margin-right: 0;
+    margin-left: 5px;
+}
+
+.chat-content {
+    padding: 10px 15px;
+    border-radius: 18px;
+    position: relative;
+    word-wrap: break-word;
+    max-width: 100%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.chat-message:not(.own) .chat-content {
+    background-color: #ffffff;
+    color: #333;
+    border-top-left-radius: 4px;
+}
+
+.chat-message.own .chat-content {
+    background-color: #95ec69;
+    color: #333;
+    border-top-right-radius: 4px;
+}
+
+.chat-input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 14px;
+}

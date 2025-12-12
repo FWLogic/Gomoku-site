@@ -237,6 +237,10 @@
                     <button class="btn btn-secondary" id="draw-btn" {% if room.status != 'playing' %}disabled{% endif %}>
                         <i class="fas fa-handshake"></i> 和棋
                     </button>
+                    <!-- 添加音效开关按钮 -->
+                    <button class="btn btn-info" id="sound-toggle-btn">
+                        <i class="fas fa-volume-up"></i> 音效开启
+                    </button>
                 </div>
 
                 <!-- 聊天区域 -->
@@ -303,7 +307,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/room.js' %}"></script>
+<!-- 引入模块化的JavaScript文件 -->
+<script src="{% static 'js/audio-manager.js' %}"></script>
+<script src="{% static 'js/game-history.js' %}"></script>
+<script src="{% static 'js/game-communication.js' %}"></script>
+<script src="{% static 'js/room-main.js' %}"></script>
 <script>
     function copyRoomLink() {
         const linkInput = document.getElementById('room-link');

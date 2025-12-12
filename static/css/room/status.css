@@ -1,0 +1,72 @@
+/* 游戏状态样式 */
+.status-your-turn {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-opponent-turn {
+    color: #dc3545;
+}
+
+.status-winner {
+    color: #28a745;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.status-lose {
+    color: #dc3545;
+    font-size: 20px;
+}
+
+.status-draw {
+    color: #ffc107;
+    font-size: 20px;
+}
+
+/* 通知样式 */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    animation: slideIn 0.3s ease;
+}
+
+.notification-success {
+    background: #28a745 !important;
+}
+
+.notification-error {
+    background: #dc3545 !important;
+}
+
+.notification-info {
+    background: #007bff !important;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
